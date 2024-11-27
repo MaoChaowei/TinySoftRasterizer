@@ -20,12 +20,13 @@ set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 add_library(glad STATIC ${EXTERNAL_DIR}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${EXTERNAL_DIR}/glad/include)
 
-# glfw
-add_subdirectory(${EXTERNAL_DIR}/glfw)
+# glfw precompiled
+set(GLFW_INCLUDE_DIR ${EXTERNAL_DIR}/GLFW)
+set(GLFW_LIBRARY ${EXTERNAL_DIR}/GLFW/glfw3.lib)
 
 # 定义可执行文件
 add_executable(softrasterizer ${SOURCE_FILES})
 
 # 链接库
-target_include_directories(softrasterizer PRIVATE src/common)
-target_link_libraries(softrasterizer PRIVATE glad glfw ${CMAKE_DL_LIBS})
+target_include_directories(softrasterizer PRIVATE src/common ${GLFW_INCLUDE_DIR})
+target_link_libraries(softrasterizer PRIVATE glad ${GLFW_LIBRARY} ${CMAKE_DL_LIBS})

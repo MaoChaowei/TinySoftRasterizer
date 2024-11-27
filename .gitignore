@@ -1,0 +1,38 @@
+# 忽略 build 文件夹
+build/
+
+# 忽略临时文件
+*.tmp
+*.log
+
+# 忽略操作系统产生的垃圾文件
+.DS_Store
+Thumbs.db
+
+# 忽略 CMake 生成的文件
+CMakeFiles/
+CMakeCache.txt
+
+# 忽略编译输出
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.out
+*.a
+*.lib
+
+# 忽略 IDE 和编辑器的临时文件
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.session
+*.swp
+
+# 忽略包管理工具文件（根据需要）
+node_modules/
+venv/
+__pycache__/
