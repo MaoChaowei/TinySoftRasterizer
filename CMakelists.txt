@@ -1,32 +1,66 @@
 # 设置最低CMake版本
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.10)
 
 # 定义项目名称和版本
-project(SRastrizer VERSION 1.0)
+project(SRasterizer VERSION 1.0)
 
 # 设置 C++ 标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# 添加外部库
+set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
+#glfw
+add_subdirectory(${EXTERNAL_DIR}/glfw)
+#glad
+add_subdirectory(${EXTERNAL_DIR}/glad)
+# assimp
+# set(BUILD_SHARED_LIBS OFF)
+# set(ASSIMP_NO_EXPORT ON)
+# set(ASSIMP_BUILD_TESTS OFF)
+# set(ASSIMP_INSTALL OFF)
+# set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+# set(ASSIMP_BUILD_ZLIB ON)
+
+# set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT FALSE)
+# set(ASSIMP_BUILD_OBJ_IMPORTER TRUE)
+# set(ASSIMP_BUILD_GLTF_IMPORTER TRUE)
+# add_subdirectory(${EXTERNAL_DIR}/assimp)
+
+set(LIB_LINKS
+    glfw
+    glad
+    # assimp
+    ${OPENGL_LIBRARIES}
+    ${CMAKE_DL_LIBS}
+    )
+
 # 定义源代码文件
-set(SOURCE_FILES
-    src/main.cpp
+file(GLOB SOURCE_FILES
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
 )
 
-# 添加外部库路径
-set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
-
-# glad
-add_library(glad STATIC ${EXTERNAL_DIR}/glad/src/glad.c)
-target_include_directories(glad PUBLIC ${EXTERNAL_DIR}/glad/include)
-
-# glfw precompiled
-set(GLFW_INCLUDE_DIR ${EXTERNAL_DIR}/GLFW)
-set(GLFW_LIBRARY ${EXTERNAL_DIR}/GLFW/glfw3.lib)
-
 # 定义可执行文件
-add_executable(softrasterizer ${SOURCE_FILES})
-
+add_executable(srender 
+               "${SOURCE_FILES}"
+                )
+# 搜索目录
+target_include_directories(srender PUBLIC 
+                ${CMAKE_SOURCE_DIR}/src/common
+                ${CMAKE_SOURCE_DIR}/src
+                ${EXTERNAL_DIR}/glm
+                ${EXTERNAL_DIR}/assimp/include
+                ${EXTERNAL_DIR}/assimp/contrib
+                )
 # 链接库
-target_include_directories(softrasterizer PRIVATE src/common ${GLFW_INCLUDE_DIR})
-target_link_libraries(softrasterizer PRIVATE glad ${GLFW_LIBRARY} ${CMAKE_DL_LIBS})
+target_link_libraries(srender PRIVATE ${LIB_LINKS} )
+
+
+# output dir
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+
+# disable some warnings!
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(srender PRIVATE -Wno-pragmas)
+endif()
+

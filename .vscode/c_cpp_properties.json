@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/external/glad/include/**",
-                "${workspaceFolder}/external/GLFW/**"
+                "${workspaceFolder}/external/glfw/include/**",
+                "${workspaceFolder}/external/glm/**"
             ],
             "defines": [
                 "_DEBUG",
