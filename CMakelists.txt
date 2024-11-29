@@ -47,6 +47,7 @@ add_executable(srender
 # 搜索目录
 target_include_directories(srender PUBLIC 
                 ${CMAKE_SOURCE_DIR}/src/common
+                ${CMAKE_SOURCE_DIR}/src/softrender
                 ${CMAKE_SOURCE_DIR}/src
                 ${EXTERNAL_DIR}/glm
                 ${EXTERNAL_DIR}/assimp/include

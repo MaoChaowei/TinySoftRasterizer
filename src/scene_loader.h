@@ -1,16 +1,9 @@
+/* scene_loader defines `Scene` to control all the objects and accelerate structures */
 #pragma once
 #include"common_include.h"
 
 
-struct Vertex{
-    glm::vec3 position_;
-    glm::vec3 normal_;
-    glm::vec2 uv;
-};
-
-//@Todo: struct Materia
-
-
+// 管理所有的ObjectDesc对象
 class Scene{
 public:
 
