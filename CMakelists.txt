@@ -50,6 +50,7 @@ target_include_directories(srender PUBLIC
                 ${CMAKE_SOURCE_DIR}/src/softrender
                 ${CMAKE_SOURCE_DIR}/src
                 ${EXTERNAL_DIR}/glm
+                ${EXTERNAL_DIR}/
                 ${EXTERNAL_DIR}/assimp/include
                 ${EXTERNAL_DIR}/assimp/contrib
                 )

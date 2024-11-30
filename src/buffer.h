@@ -1,6 +1,9 @@
 #include"common_include.h"
 
 
+#include"common_include.h"
+
+
 class ColorBuffer{
 public:
     
@@ -39,7 +42,38 @@ private:
     int width_;
     int height_;
     // addr_:帧缓存起始地址，采用rgba四字节连续存储的方式表示一个像素的颜色，
-    // viewport的地址（x，y）按照：左上角为（0,0），右下角为（width,height）
+    // viewport的地址（x，y）按照：左下角为（0,0），右上角为（width,height）
     unsigned char* addr_;
 
+}; 
+
+
+class DepthBuffer{
+public:
+    DepthBuffer(int width,int height){
+        zbuffer_.resize(width*height);
+    }
+    inline void reSize(int width,int height){
+        zbuffer_.resize(width*height);
+    }
+
+    void cleanZbuffer(){
+        // -1.0F is the farest in NDC space
+        std::fill(zbuffer_.begin(),zbuffer_.end(),-1.0f);
+    }
+
+    void setDepth(int x,int y,float depth){
+        zbuffer_[y*width_+x]=depth;
+    }
+
+    inline std::shared_ptr<std::vector<float>> getZbuffer(){
+        return std::make_shared<std::vector<float>>(zbuffer_);
+    }
+
+private:
+    int width_;
+    int height_;
+    std::vector<float> zbuffer_;
+
 };
+ 

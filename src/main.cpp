@@ -7,12 +7,32 @@
 #include"buffer.h"
 #include"scene_loader.h"
 #include"object.h"
+#ifndef TINYOBJLOADER_IMPLEMENTATION
+#define TINYOBJLOADER_IMPLEMENTATION
+#endif
+#include "tiny_obj_loader.h"
 
 const int TARGET_FPS = 10;
 const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 
 
 int main(void) {
+
+    // prepare model
+    std::vector<std::unique_ptr<Mesh>> meshes;
+    {
+        ObjLoader objloader(std::string("assets/model/line_dot.obj"));// cornell_box
+        std::vector<std::unique_ptr<Mesh>> meshes=std::move(objloader.getMeshes());
+        if(1){
+            int t=0;
+            for(auto& p:meshes){
+                std::cout<<"MESH["<<t++<<"] INFO---------------"<<std::endl;
+                p->printMeshInfo();
+            }
+        }
+    }   // clean objloader,hahaha
+    
+
     // prepare camera
     Camera camera(glm::vec3(10,10,10),glm::vec3(0,0,0),glm::vec3(0,0,1));
     int width=camera.getImageWidth();
@@ -21,19 +41,13 @@ int main(void) {
     // init color buffer
     ColorBuffer colorbuffer(width,height);
 
-    // prepare scene
-    Mesh mesh_demo;
-    mesh_demo.setTriangleDemo();
-    mesh_demo.printMeshInfo();
+
     // 创建一个测试模型矩阵（例如：平移 + 旋转 + 缩放）
     glm::mat4 testMatrix = glm::mat4(1.0f);
     testMatrix = glm::translate(testMatrix, glm::vec3(1.0f, 2.0f, 3.0f)); // 平移
     testMatrix = glm::rotate(testMatrix, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // 绕Y轴旋转45度
     testMatrix = glm::scale(testMatrix, glm::vec3(2.0f, 2.0f, 2.0f)); // 缩放
 
-    mesh_demo.setModel2World(testMatrix);
-    // TODO: render对象来实践一下mvp
-    mesh_demo.printMeshInfo();
 
     // init glfw window and glad shader
     Window window;
