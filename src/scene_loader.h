@@ -8,7 +8,7 @@ class Scene{
 public:
 
     // 管理所有的ObjectDesc对象
-    std::vector<std::shared_ptr<ObjectDesc>> all_objects_;
+    std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
     // BVH root node
 
 

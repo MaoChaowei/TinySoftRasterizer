@@ -19,15 +19,24 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
 
     // prepare model
-    std::vector<std::unique_ptr<Mesh>> meshes;
+    Scene scene;
     {
-        ObjLoader objloader(std::string("assets/model/line_dot.obj"));// cornell_box
-        std::vector<std::unique_ptr<Mesh>> meshes=std::move(objloader.getMeshes());
+        ObjLoader objloader(std::string("assets/model/line_dot.obj"));// cornell_box// line_dot
+        auto& objmesh=objloader.getMeshes();
+        auto& objline=objloader.getLines();
+
+        for(auto& m:objmesh){
+            scene.all_objects_.push_back(std::move(m));
+        }
+        for(auto& li:objline){
+            scene.all_objects_.push_back(std::move(li));
+        }
+        
         if(1){
             int t=0;
-            for(auto& p:meshes){
-                std::cout<<"MESH["<<t++<<"] INFO---------------"<<std::endl;
-                p->printMeshInfo();
+            for(auto& p:scene.all_objects_){
+                std::cout<<"Obj["<<t++<<"] INFO---------------"<<std::endl;
+                p->printInfo();
             }
         }
     }   // clean objloader,hahaha

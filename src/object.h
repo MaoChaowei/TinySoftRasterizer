@@ -27,24 +27,41 @@ public:
     void setModel2World(glm::mat4& model){
         mat_model_=model;
     }
+    void addTransform(glm::mat4& model){
+        mat_model_=model*mat_model_;
+    }
 
     virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib)=0;
-
+    virtual void printInfo() const=0;
     virtual void clear()=0;
+
+    inline const std::vector<Vertex>& getVertices()const {
+        return vertices_;
+    }
+    inline std::string getName()const{
+        return name_;
+    }
+
+protected:
+    std::string name_;
+
+    // all the information of vertices
+    std::vector<Vertex> vertices_;  
 
     // translation in world space
     glm::mat4 mat_model_=glm::mat4(1.0f);
 
     objecType type_;
+
 };
 
-// note the obj must be triangulated
 class Mesh:public ObjectDesc{
 public:
     Mesh(){
         type_=objecType::MESH;
     }
 
+    // note the obj must be triangulated
     void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
 
     void clear() override{
@@ -53,22 +70,21 @@ public:
     
     // for debug use
     void setTriangleDemo();
-    void printMeshInfo() const;
+    void printInfo() const override;
 
 private:
-    std::string name_;
 
     // the total number of faces, hence vertices num is trible
     unsigned long long face_num_;   
-
-    // all the information of vertices
-    std::vector<Vertex> vertices_;  
 
     
 };
 
 class Line:public ObjectDesc{
 public:
+    Line(){
+        type_=objecType::LINE;
+    }
     void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
 
     void clear() override{
@@ -77,20 +93,19 @@ public:
 
     // for debug use
     // void setLineDemo();
-    // void printLineInfo() const;
+    void printInfo() const override;
 
 private:
-    std::string name_;
     // the total number of lines, hence vertices num is line_num_+1
     unsigned long long line_num_;   
-
-    // all the information of vertices
-    std::vector<Vertex> vertices_;  
 
 };
 
 class Point:public ObjectDesc{
 public:
+    Point(){
+        type_=objecType::POINT;
+    }
 //TODO
     // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
 
@@ -101,17 +116,14 @@ public:
     // void printPointInfo() const;
 
 private:
-    std::string name_;
     // the total number of lines, hence vertices num is line_num_+1
     unsigned long long point_num_;   
 
-    // all the information of vertices
-    std::vector<Vertex> vertices_;  
 
 };
 
 
-// a single read from .obj results a `ObjLoader`
+// a single read from .obj results in a `ObjLoader`
 class ObjLoader{
 public:
     ObjLoader()=delete;
@@ -119,7 +131,6 @@ public:
     ObjLoader(std::string str){
         filename_=str;
         readObjFile(str);
-        // setMesh();
         setObject();
     }
 
@@ -139,16 +150,17 @@ public:
     std::vector<std::unique_ptr<Mesh>>& getMeshes(){
         return meshes_;
     }
+
+    std::vector<std::unique_ptr<Line>>& getLines(){
+        return lines_;
+    }
     
 
 private:
+    
     void readObjFile(std::string inputfile="");
 
-    // void setMesh();
-
     void setObject();
-
-    void setLine();
 
 private:
     std::string filename_;

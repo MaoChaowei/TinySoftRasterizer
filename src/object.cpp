@@ -68,7 +68,7 @@ void Mesh::setTriangleDemo() {
     vertices_[2].uv_ = glm::vec2(0.0f, 1.0f);           // 纹理坐标
 }
 
-void Mesh::printMeshInfo() const {
+void Mesh::printInfo() const {
     std::cout << "Mesh Name: " << name_ << "\n";
     std::cout << "Number of Faces: " << face_num_ << "\n";
     std::cout << "Number of Vertices: " << vertices_.size() << "\n";
@@ -83,10 +83,11 @@ void Mesh::printMeshInfo() const {
     }
 }
 
+
 //---------------------Line--------------------------//
 void Line::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib){
     name_=info.name;
-    line_num_=info.lines.num_line_vertices.size()+1;
+    line_num_=info.lines.indices.size()+1;
     vertices_.resize(line_num_-1);  
 
     int vnum=vertices_.size();
@@ -121,10 +122,29 @@ void Line::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
     }
 }
 
+void Line::printInfo() const {
+    std::cout << "Line Name: " << name_ << "\n";
+    std::cout << "Number of Lines: " << line_num_ << "\n";
+    std::cout << "Number of Vertices: " << vertices_.size() << "\n";
+
+    for (size_t i = 0; i < vertices_.size(); ++i) {
+        const auto& v = vertices_[i];
+        std::cout << "Vertex " << i + 1 << ":\n";
+        std::cout << "  Position: (" << v.pos_.x << ", " << v.pos_.y << ", " << v.pos_.z << ")\n";
+        std::cout << "  Normal:   (" << v.norm_.x << ", " << v.norm_.y << ", " << v.norm_.z << ")\n";
+        std::cout << "  Color:    (" << v.color_.r << ", " << v.color_.g << ", " << v.color_.b << ", " << v.color_.a << ")\n";
+        std::cout << "  UV:       (" << v.uv_.x << ", " << v.uv_.y << ")\n";
+    }
+}
 
 //---------------------ObjLoader--------------------------//
 
-
+/**
+ * @brief banking on `tiny-objloader` to finish obj-file resolving job~
+ * everything is conserved in `reader_`
+ * 
+ * @param inputfile : relative searching route to obj file.
+ */
 void ObjLoader::readObjFile(std::string inputfile){
 
     if(inputfile.empty())
@@ -154,19 +174,10 @@ void ObjLoader::readObjFile(std::string inputfile){
     std::cout<<"Obj-Loader: Successfully found .obj "<<std::endl;
 }
 
-// void  ObjLoader::setMesh(){
-//     auto& attrib = reader_.GetAttrib();
-//     auto& shapes = reader_.GetShapes();
-
-//     total_shapes_=shapes.size();
-//     meshes_.resize(total_shapes_);
-
-//     for(int i=0;i<total_shapes_;++i){
-//         meshes_[i] = std::make_unique<Mesh>(); // 初始化 unique_ptr
-//         meshes_[i]->initObject(shapes[i],attrib);
-//     }
-// }
-
+/**
+ * @brief retrive everything in `reader_` to my structure for further usage
+ * 
+ */
 void ObjLoader::setObject(){
     auto& attrib = reader_.GetAttrib();
     auto& shapes = reader_.GetShapes();
