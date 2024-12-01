@@ -19,27 +19,14 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
 
     // prepare model
-    Scene scene;
-    {
-        ObjLoader objloader(std::string("assets/model/line_dot.obj"));// cornell_box// line_dot
-        auto& objmesh=objloader.getMeshes();
-        auto& objline=objloader.getLines();
-
-        for(auto& m:objmesh){
-            scene.all_objects_.push_back(std::move(m));
+    Scene scene(std::string("assets/model/cornell_box.obj"));
+    if(1){
+        int t=0;
+        for(auto& p:scene.getObjects()){
+            std::cout<<"---------------Obj [ "<<t++<<" ] INFO---------------"<<std::endl;
+            p->printInfo();
         }
-        for(auto& li:objline){
-            scene.all_objects_.push_back(std::move(li));
-        }
-        
-        if(1){
-            int t=0;
-            for(auto& p:scene.all_objects_){
-                std::cout<<"Obj["<<t++<<"] INFO---------------"<<std::endl;
-                p->printInfo();
-            }
-        }
-    }   // clean objloader,hahaha
+    }
     
 
     // prepare camera
