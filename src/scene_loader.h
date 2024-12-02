@@ -27,14 +27,14 @@ public:
         }
     }
 
-    inline std::vector<std::unique_ptr<ObjectDesc>>& getObjects(){
+    inline std::vector<std::shared_ptr<ObjectDesc>>& getObjects(){
         return all_objects_;
     }
     
 private:
     
     // 管理所有的ObjectDesc对象
-    std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
+    std::vector<std::shared_ptr<ObjectDesc>> all_objects_;
     // BVH root node
 
 };

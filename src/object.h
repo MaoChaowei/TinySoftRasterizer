@@ -83,6 +83,15 @@ public:
         return name_;
     }
 
+    inline objecType getType()const{
+        return type_;
+    }
+
+    inline glm::mat4 getModel()const{
+        return mat_model_;
+    }
+
+
 protected:
     std::string name_;
 

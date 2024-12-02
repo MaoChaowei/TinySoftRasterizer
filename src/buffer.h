@@ -1,8 +1,9 @@
 #include"common_include.h"
 
-
-#include"common_include.h"
-
+// struct Color{
+//     char r,g,b,a;
+//     Color():r(0),g(0),b(0),a(1){}
+// };
 
 class ColorBuffer{
 public:
@@ -15,6 +16,7 @@ public:
 
     ColorBuffer(int width,int height):width_(width),height_(height){
         addr_=new unsigned char[width*height*4];
+        pixel_num_=width*height;
     }
 
     inline void cleanBuffer(const unsigned char num=0){
@@ -25,11 +27,15 @@ public:
         height_=height;
         delete []addr_;
         addr_=new unsigned char[width*height*4];
+        pixel_num_=width*height;
     }
     inline unsigned char* getAddr()const{return addr_;}
 
     inline void setPixel(int x,int y,glm::vec4 color)const{
         int idx=y*width_+x;
+        if(idx>=pixel_num_||idx<0) 
+            return;
+
         for(int i=0;i<4;++i)
             addr_[idx*4+i]=color[i];
     }
@@ -44,6 +50,7 @@ private:
     // addr_:帧缓存起始地址，采用rgba四字节连续存储的方式表示一个像素的颜色，
     // viewport的地址（x，y）按照：左下角为（0,0），右上角为（width,height）
     unsigned char* addr_;
+    int pixel_num_=0;
 
 }; 
 

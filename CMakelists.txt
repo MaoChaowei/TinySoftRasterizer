@@ -14,18 +14,6 @@ set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 add_subdirectory(${EXTERNAL_DIR}/glfw)
 #glad
 add_subdirectory(${EXTERNAL_DIR}/glad)
-# assimp
-# set(BUILD_SHARED_LIBS OFF)
-# set(ASSIMP_NO_EXPORT ON)
-# set(ASSIMP_BUILD_TESTS OFF)
-# set(ASSIMP_INSTALL OFF)
-# set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
-# set(ASSIMP_BUILD_ZLIB ON)
-
-# set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT FALSE)
-# set(ASSIMP_BUILD_OBJ_IMPORTER TRUE)
-# set(ASSIMP_BUILD_GLTF_IMPORTER TRUE)
-# add_subdirectory(${EXTERNAL_DIR}/assimp)
 
 set(LIB_LINKS
     glfw
@@ -38,6 +26,7 @@ set(LIB_LINKS
 # 定义源代码文件
 file(GLOB SOURCE_FILES
     ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/softrender/*.cpp
 )
 
 # 定义可执行文件

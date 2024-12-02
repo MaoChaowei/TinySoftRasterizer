@@ -47,7 +47,7 @@ glm::mat4 Camera::getPerspectiveMatrix()const{
 	p[1][1]=(1.0f*near_flat_z_)/half_near_height_;
 	p[2][2]=-(near_flat_z_+far_flat_z_)/(far_flat_z_-near_flat_z_);
 	p[2][3]=-1;
-	p[3][2]=-(2,0*far_flat_z_*near_flat_z_)/(far_flat_z_-near_flat_z_);
+	p[3][2]=-(2.0*far_flat_z_*near_flat_z_)/(far_flat_z_-near_flat_z_);
 	
 	return p;
 }

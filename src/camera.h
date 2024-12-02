@@ -7,7 +7,7 @@
 class Camera{
 public:
     Camera():position_(glm::vec3(0.f)),front_(glm::vec3(0,0,-1)),right_(glm::vec3(1,0,0)),
-			up_(glm::vec3(0,1,0)),image_width_(1000),fov_(16.0/9.0){
+			up_(glm::vec3(0,1,0)),image_width_(1000),fov_(60){
 
 		image_height_=(int)(image_width_/aspect_ratio_);
 		aspect_ratio_=image_width_/(float)image_height_;
