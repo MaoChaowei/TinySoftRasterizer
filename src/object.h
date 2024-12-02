@@ -79,6 +79,10 @@ public:
     inline const std::vector<Vertex>& getVertices()const {
         return vertices_;
     }
+    inline const std::vector<uint32_t>& getIndices()const {
+        return indices_;
+    }
+
     inline std::string getName()const{
         return name_;
     }

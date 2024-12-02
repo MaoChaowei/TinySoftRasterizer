@@ -19,7 +19,7 @@ public:
         pixel_num_=width*height;
     }
 
-    inline void cleanBuffer(const unsigned char num=0){
+    inline void clear(const unsigned char num=0){
         std::fill(addr_,addr_+width_*height_*4,num);
     }
     inline void reSetBuffer(int width,int height){

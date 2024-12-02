@@ -21,16 +21,19 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     
     Render render;
-    render.setScene(std::string("assets/model/line_dot.obj"));
+    render.setScene(std::string("assets/model/tri.obj"));
+
     auto& camera=render.getCamera();
     auto& colorbuffer=render.getColorBuffer();
+    auto& scene=render.getScene();
+    auto objs=scene.getObjects();
+
     int width=camera.getImageWidth();
     int height=camera.getImageHeight();
     
     render.setTransformation();
     
     /*
-    // prepare model
     Scene scene(std::string("assets/model/line_dot.obj"));// cornell_box
     if(0){
         int t=0;
@@ -38,34 +41,13 @@ int main(void) {
             std::cout<<"---------------Obj [ "<<t++<<" ] INFO---------------"<<std::endl;
             p->printInfo();
         }
-    }
-    
-
-    // prepare camera
-    Camera camera;
-    int width=camera.getImageWidth();
-    int height=camera.getImageHeight();
-
-    // init color buffer
-    ColorBuffer colorbuffer(width,height);*/
-
-
-    // 创建一个测试模型矩阵（例如：平移 + 旋转 + 缩放）
-    // glm::mat4 testMatrix = glm::mat4(1.0f);
-    // testMatrix = glm::translate(testMatrix, glm::vec3(1.0f, 2.0f, 3.0f)); // 平移
-    // testMatrix = glm::rotate(testMatrix, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // 绕Y轴旋转45度
-    // testMatrix = glm::scale(testMatrix, glm::vec3(2.0f, 2.0f, 2.0f)); // 缩放
+    }*/
 
 
     // init glfw window and glad shader
     Window window;
     window.init("SRender", width, height);
 
-
-    // delete this
-    std::random_device rd; 
-    std::mt19937 gen(rd()); // 使用Mersenne Twister引擎
-    std::uniform_int_distribution<> dis(0, 255); // 定义随机数范围 [1, 100]
 
     int cnt=0;
      // 初始化计时器
@@ -75,15 +57,21 @@ int main(void) {
         auto startTime = std::chrono::high_resolution_clock::now();// 当前帧开始时间
         // process input
         window.processInput();
+        if(0){// 简单的模型移动
+            // Step 1: 自转（绕模型局部坐标系的 rotation_axis 旋转）
+            glm::mat4 model_matrix=glm::rotate(objs[0]->getModel(), glm::radians(10.f), glm::vec3(0,0,1));
+            // Step 2: 平移（将模型移动到新的位置）
+            // model_matrix = glm::translate(model_matrix, glm::vec3(0.0f, 1.0f, 1.0f));
 
+            objs[0]->setModel2World(model_matrix);
+        }
+        
         /* RENDERING */
         //TODO: pipline的入口函数
         render.pipelineDemo();
 
-        // int temp=dis(gen)%255;
-        // std::cout<<"frame "<<cnt++<<" : temp = "<<temp<<std::endl;
-        // colorbuffer.cleanBuffer(temp);
-
+        std::cout<<"frame : "<<cnt++<<std::endl;
+        
         // update frameBuffer
         window.updateFrame(colorbuffer.getAddr());
 

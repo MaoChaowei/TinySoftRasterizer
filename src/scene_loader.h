@@ -27,7 +27,7 @@ public:
         }
     }
 
-    inline std::vector<std::shared_ptr<ObjectDesc>>& getObjects(){
+    inline const std::vector<std::shared_ptr<ObjectDesc>>& getObjects()const{
         return all_objects_;
     }
     

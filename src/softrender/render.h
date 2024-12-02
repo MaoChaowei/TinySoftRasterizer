@@ -4,25 +4,27 @@
 #include"../camera.h"
 #include"../scene_loader.h"
 #include"../buffer.h"
+#include"AABB.h"
+#include"utils.h"
 
-// point in screen space. left-bottom is the origin.
-struct Point2d{
-    int x;
-    int y;
-    Point2d():x(0),y(0){}
-    Point2d(glm::vec4& t){
-        x=t.x;
-        y=t.y;
-    }
+// encapsulate info for drawTriangle
+struct TriangelRecord{
+    Point2d p[3];
+    const Vertex* v[3];
 };
 
 class Render{
 public:
-    Render():camera_(),colorbuffer_(camera_.getImageWidth(),camera_.getImageHeight()){}
+    Render():camera_(),colorbuffer_(camera_.getImageWidth(),camera_.getImageHeight()){
+        box_.min={0,0};
+        box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+    }
 
     inline void setCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000){
         camera_.updateCamera(pos,lookat,right);
         colorbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
+        box_.min={0,0};
+        box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
     }
 
     inline void setScene(std::string filename){
@@ -35,6 +37,8 @@ public:
     // clip and map to screen
     void pipeClip2Screen();
 
+    void pipeModel2Screen();
+
     // build Accelerate structure in Screen space
     // void createBVH();
 
@@ -46,16 +50,19 @@ public:
 
     // rastrization each frame, call setTransformation before this
     void pipelineDemo(){
-        this->pipeModel2NDC();
-        this->pipeClip2Screen();
+        // this->pipeModel2NDC();
+        // this->pipeClip2Screen();
+        pipeModel2Screen();
     }
     // call this at the end of each frame's rendering!
     void inline cleanFrame(){
         screen_pos_.clear();
+        colorbuffer_.clear();
     }
 
     // draw line
     void drawLine( Point2d t1, Point2d t2,const glm::vec4 color);
+    void drawTriangle(TriangelRecord& triangle);
 
     inline const Camera& getCamera()const{ return camera_;}
     inline const ColorBuffer& getColorBuffer()const{ return colorbuffer_;}
@@ -90,5 +97,8 @@ private:
     // each object's position in Screen space, updated each frame
     // note that the index order of vertex should not change!
     std::unordered_map<std::shared_ptr<ObjectDesc>,std::vector<glm::vec4>> screen_pos_;
+
+    // screen aabb box
+    AABB2d box_;
 
 };
