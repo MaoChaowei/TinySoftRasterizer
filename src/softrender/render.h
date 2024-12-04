@@ -6,16 +6,18 @@
 #include"../buffer.h"
 #include"AABB.h"
 #include"utils.h"
+#include"shader.h"
 
-// encapsulate info for drawTriangle
-struct TriangelRecord{
-    Point2d p[3];
-    const Vertex* v[3];
+
+struct RenderSetting{
+    ShaderType shader_type=ShaderType::Depth;
 };
 
 class Render{
 public:
-    Render():camera_(),colorbuffer_(camera_.getImageWidth(),camera_.getImageHeight()){
+    Render():camera_(),colorbuffer_(camera_.getImageWidth(),camera_.getImageHeight()),
+            zbuffer_(camera_.getImageWidth(),camera_.getImageHeight()){
+
         box_.min={0,0};
         box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
     }
@@ -23,6 +25,9 @@ public:
     inline void setCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000){
         camera_.updateCamera(pos,lookat,right);
         colorbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
+        zbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
+        updateMatrix();
+
         box_.min={0,0};
         box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
     }
@@ -31,13 +36,10 @@ public:
         scene_.addScene(filename);
     }
 
-    // implement MVP for each Vertex
-    void pipeModel2NDC();
-
-    // clip and map to screen
-    void pipeClip2Screen();
 
     void pipeModel2Screen();
+
+    void pipeFragmentShader();
 
     // build Accelerate structure in Screen space
     // void createBVH();
@@ -45,31 +47,42 @@ public:
      // calculate transformation from wold-space to viewport-space
     // x and y in the range of [image]^[image],z in the range of [-1,1]; 
     // once change camera property, we need this function to update VPV-matrix
-    void setTransformation();
+    void updateMatrix();
+
+    void pipelineInit(const RenderSetting & setting=RenderSetting());
 
 
     // rastrization each frame, call setTransformation before this
-    void pipelineDemo(){
-        // this->pipeModel2NDC();
-        // this->pipeClip2Screen();
+    /*void pipelineBegin(){
+        if(is_init_==false){
+            std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
+            return;
+        }
+
         pipeModel2Screen();
-    }
+        pipeFragmentShader();
+
+    }*/
+    void pipelineBegin();
+
     // call this at the end of each frame's rendering!
     void inline cleanFrame(){
-        screen_pos_.clear();
+        // screen_pos_.clear();
         colorbuffer_.clear();
+        zbuffer_.clear();
     }
 
     // draw line
-    void drawLine( Point2d t1, Point2d t2,const glm::vec4 color);
-    void drawTriangle(TriangelRecord& triangle);
+    void drawLine( glm::vec2 t1, glm::vec2 t2,const glm::vec4 color);
+    // void drawTriangle(TriangelRecord& triangle);
+    void drawTriangle();
 
     inline const Camera& getCamera()const{ return camera_;}
     inline const ColorBuffer& getColorBuffer()const{ return colorbuffer_;}
     inline const Scene& getScene()const{ return scene_;}
 
     // debug
-    inline void printMatrix(const glm::mat4& mat,const std::string name)const{
+    void printMatrix(const glm::mat4& mat,const std::string name)const{
         std::cout<<name<<std::endl;
         for(int i=0;i<4;++i){
             for(int j=0;j<4;++j)
@@ -77,7 +90,7 @@ public:
             std::cout<<std::endl;
         }
     }
-    inline void debugMatrix()const{
+    void debugMatrix()const{
         printMatrix(mat_view_,"mat_view_");
         printMatrix(mat_perspective_,"mat_perspective_");
         printMatrix(mat_viewport_,"mat_viewport_");
@@ -85,8 +98,12 @@ public:
 
 
 private:
+    bool is_init_=false;
+    RenderSetting setting_;
+    std::shared_ptr<Shader> sdptr_;
     Camera camera_;
     ColorBuffer colorbuffer_;
+    DepthBuffer zbuffer_;
     Scene scene_;
     
     glm::mat4 mat_view_;        // model to world
@@ -96,9 +113,10 @@ private:
 
     // each object's position in Screen space, updated each frame
     // note that the index order of vertex should not change!
-    std::unordered_map<std::shared_ptr<ObjectDesc>,std::vector<glm::vec4>> screen_pos_;
+    // std::unordered_map<std::shared_ptr<ObjectDesc>,std::vector<glm::vec4>> screen_pos_;
 
     // screen aabb box
     AABB2d box_;
+
 
 };

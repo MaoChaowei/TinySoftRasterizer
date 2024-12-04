@@ -21,7 +21,7 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     
     Render render;
-    render.setScene(std::string("assets/model/tri.obj"));
+    render.setScene(std::string("assets/model/cube.obj"));
 
     auto& camera=render.getCamera();
     auto& colorbuffer=render.getColorBuffer();
@@ -31,7 +31,10 @@ int main(void) {
     int width=camera.getImageWidth();
     int height=camera.getImageHeight();
     
-    render.setTransformation();
+    RenderSetting setting;
+    setting.shader_type=ShaderType::Color;
+
+    render.pipelineInit(setting);
     
     /*
     Scene scene(std::string("assets/model/line_dot.obj"));// cornell_box
@@ -57,20 +60,23 @@ int main(void) {
         auto startTime = std::chrono::high_resolution_clock::now();// 当前帧开始时间
         // process input
         window.processInput();
-        if(0){// 简单的模型移动
-            // Step 1: 自转（绕模型局部坐标系的 rotation_axis 旋转）
-            glm::mat4 model_matrix=glm::rotate(objs[0]->getModel(), glm::radians(10.f), glm::vec3(0,0,1));
-            // Step 2: 平移（将模型移动到新的位置）
-            // model_matrix = glm::translate(model_matrix, glm::vec3(0.0f, 1.0f, 1.0f));
+        if(1){// 简单的模型移动
+           
+            static int angle=0;
+            angle=(++angle)%360;
+            glm::vec3 model_position{20,20,-100};
+            // M=T*R*S
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position);
+            glm::mat4 rotate=glm::rotate(glm::mat4(1.0f), glm::radians((float)angle), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+            glm::mat4 model_matrix=translation*rotate*scale;
 
             objs[0]->setModel2World(model_matrix);
         }
         
         /* RENDERING */
         //TODO: pipline的入口函数
-        render.pipelineDemo();
-
-        std::cout<<"frame : "<<cnt++<<std::endl;
+        render.pipelineBegin();
         
         // update frameBuffer
         window.updateFrame(colorbuffer.getAddr());
@@ -78,9 +84,10 @@ int main(void) {
          // 等待刷新
         auto curTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(curTime - startTime).count();
-        if (duration < FRAME_DURATION) {
-            std::this_thread::sleep_for(std::chrono::milliseconds((long)(FRAME_DURATION - duration)));
-        }
+        // if (duration < FRAME_DURATION) {
+        //     std::this_thread::sleep_for(std::chrono::milliseconds((long)(FRAME_DURATION - duration)));
+        // }
+        std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<std::endl;
 
         // postrender events
         window.swapBuffer();

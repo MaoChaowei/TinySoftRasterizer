@@ -1,39 +1,27 @@
 #include"render.h"
 
 
-namespace tools{
 
-#define IN_NDC(x) (((x)>=-1.0f)&&((x)<=1.0f))
 
-inline bool outNDC(const glm::vec4& pos){
-    return IN_NDC(pos.x)&&IN_NDC(pos.y)&&IN_NDC(pos.z);
-}
-
-// get the barycenter of goal_p in the p1-p2-p3 triangle
-inline glm::vec3 getBaryCenter(Point2d p1, Point2d p2, Point2d p3, Point2d goal_p) {
-    float denom = (p2.y - p3.y) * (p1.x - p3.x) + (p3.x - p2.x) * (p1.y - p3.y);
-    if (std::abs(denom) < 1e-6) {
-        throw std::runtime_error("Triangle is degenerate, denominator is zero.");
-    }
-    float lambda1 = ((p2.y - p3.y) * (goal_p.x - p3.x) + (p3.x - p2.x) * (goal_p.y - p3.y)) / denom;
-    float lambda2 = ((p3.y - p1.y) * (goal_p.x - p3.x) + (p1.x - p3.x) * (goal_p.y - p3.y)) / denom;
-    float lambda3 = 1.0f - lambda1 - lambda2;
-
-    return glm::vec3(lambda1, lambda2, lambda3);
-}
-
-}
-
-void Render::setTransformation(){
-
+void Render::updateMatrix(){
     mat_view_=camera_.getViewMatrix();
     mat_perspective_=camera_.getPerspectiveMatrix();
     mat_viewport_=camera_.getViewportMatrix();
+}
 
+void Render::pipelineInit(const RenderSetting & setting){
+    // init transformation
+    updateMatrix();
+    setting_=setting;
+    // init shader
+    sdptr_=std::make_shared<Shader>();
+    sdptr_->setShaderType(setting.shader_type);
+
+    is_init_=true;
 }
 
 // TODO: make sure points are legal
-void Render::drawLine( Point2d t1, Point2d t2,const glm::vec4 color){
+void Render::drawLine( glm::vec2 t1, glm::vec2 t2,const glm::vec4 color){
     // make sure: x-axis is less steep and t1 is the left point
     bool swap_flag=0;
     if(std::abs(t1.x-t2.x)<std::abs(t1.y-t2.y)){
@@ -71,51 +59,8 @@ void Render::drawLine( Point2d t1, Point2d t2,const glm::vec4 color){
 }
 
 
-// implement MVP for each Vertex
-void Render::pipeModel2NDC(){
-    // for each object's each vertex,transform them to vec4 and implement mvpv
-    auto& objects=scene_.getObjects();
-    for(auto& obj:objects){
-        glm::mat4 mat_model=obj->getModel();
-        auto& NDCVertices=screen_pos_[obj];
-
-        for( auto& v:obj->getVertices()){
-            // from model to Clip space
-            glm::vec4 npos=mat_perspective_*mat_view_*mat_model*glm::vec4(v.pos_,1.0f);
-            // perspective division into NDC
-            npos=npos/npos.w;
-            // update _sspace
-            NDCVertices.push_back(npos);
-        }
-    
-    }
-}
-
-void Render::pipeClip2Screen(){
-    auto& objects=scene_.getObjects();
-    for(auto& obj:objects){
-        auto otype=obj->getType();
-        auto& NDCVertices=screen_pos_[obj];
-
-        if(otype==objecType::LINE){
-            int v_num=NDCVertices.size();
-            Point2d t1,t2;
-            NDCVertices[0]=mat_viewport_*NDCVertices[0];
-            t1=NDCVertices[0];
-            for(int i=1;i<v_num;++i){
-                //MUST TODO: Line Clipping
-                NDCVertices[i]=mat_viewport_*NDCVertices[i];
-                t2=NDCVertices[i];
-                drawLine(t1,t2,glm::vec4(255));
-                t1=t2;
-            }
-        }
-    }
-}
-
-
 // go through all the pixels inside the AABB, that means didn't use coherence here
-void Render::drawTriangle(TriangelRecord& triangle){
+/*void Render::drawTriangle(TriangelRecord& triangle){
     AABB2d aabb;
     aabb.containTriangel(triangle.p[0],triangle.p[1],triangle.p[2]);
     aabb.clipAABB(box_);
@@ -125,45 +70,150 @@ void Render::drawTriangle(TriangelRecord& triangle){
     for(int y=aabb.min.y;y<=aabb.max.y;++y){
         for(int x=aabb.min.x;x<=aabb.max.x;++x){
             // get barycentric coordinate~
-            glm::vec3 bary=tools::getBaryCenter(triangle.p[0],triangle.p[1],triangle.p[2],Point2d(x,y));
+            glm::vec3 bary=utils::getBaryCenter(triangle.p[0],triangle.p[1],triangle.p[2],glm::vec2(x,y));
             if(bary.x<0||bary.y<0||bary.z<0)
                 continue;
-            // get color
-            glm::vec4 color;
-            for(int i=0;i<4;++i){
-                color[i]=glm::dot(glm::vec3(triangle.v[0]->color_[i],triangle.v[1]->color_[i],
-                triangle.v[2]->color_[i]),bary);
+
+            // depth test
+            float depth=glm::dot(glm::vec3(triangle.p[0].z,triangle.p[1].z,triangle.p[2].z),bary);
+            if(zbuffer_.zTest(x,y,depth)==false)
+                continue;
+
+            // get uv or color
+            if(setting_.shader_type==ShaderType::Ordinary){
+                if(triangle.v[0]->uv_[0]>=0){
+                    glm::vec2 uv;
+                    for(int i=0;i<2;++i){
+                        uv[i]=glm::dot(glm::vec3(triangle.v[0]->uv_[i],triangle.v[1]->uv_[i],
+                        triangle.v[2]->uv_[i]),bary);
+                    }
+                    // glm::vec4 color=;
+                    // colorbuffer_.setPixel(x,y,color);
+                }
+                else if(triangle.v[0]->color_[0]>=0){
+                    glm::vec4 color;
+                    for(int i=0;i<4;++i){
+                        color[i]=glm::dot(glm::vec3(triangle.v[0]->color_[i],triangle.v[1]->color_[i],
+                        triangle.v[2]->color_[i]),bary);
+                    }
+                    colorbuffer_.setPixel(x,y,color);
+                }
+                else{   
+                    // default color : White  
+                    colorbuffer_.setPixel(x,y,glm::vec4(255.0,255.0,255.0,1));
+                }
             }
-            colorbuffer_.setPixel(x,y,color);
+            else if(setting_.shader_type==ShaderType::Depth){
+                    colorbuffer_.setPixel(x,y,glm::vec4(depth*255.f,depth*255.f,depth*255.f,1));
+            }
+            else{
+                std::cout<<"unknown `setting_.shader_type`...tobedone\n";
+            }
+        }
+    }
+}*/
+
+// go through all the pixels inside the AABB, that means didn't use coherence here
+void Render::drawTriangle(){
+    AABB2d aabb;
+    aabb.containTriangel(sdptr_->getPoint2d(0),sdptr_->getPoint2d(1),sdptr_->getPoint2d(2));
+    aabb.clipAABB(box_);
+    if(!aabb.valid)
+        return;
+    
+    for(int y=aabb.min.y;y<=aabb.max.y;++y){
+        for(int x=aabb.min.x;x<=aabb.max.x;++x){
+            bool passZtest=sdptr_->fragmentShader(x,y,zbuffer_.getDepth(x,y));
+            if(passZtest){
+                colorbuffer_.setPixel(x,y,sdptr_->getColor());
+                zbuffer_.setDepth(x,y,sdptr_->getDepth());
+            }
         }
     }
 }
 
+
+
+void Render::pipelineBegin(){
+    if(is_init_==false){
+        std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
+        return;
+    }
+    // for each object's each vertex
+    auto& objects=scene_.getObjects();
+    for(auto& obj:objects){
+        glm::mat4 mat_model=obj->getModel();        // debugMatrix();
+        auto otype=obj->getPrimitiveType();
+        auto& objvertices=obj->getVertices();
+        auto& objindices=obj->getIndices();
+
+        // calculate all the matrix operations and send to shader
+        glm::mat4 transform=mat_viewport_*mat_perspective_*mat_view_*mat_model;
+        sdptr_->bindTransform(&transform);
+
+        glm::vec4 npos;
+        int ver_num=int(otype);
+        sdptr_->setPrimitiveType(otype);
+
+        for(auto it=objindices.begin();it!=objindices.end();){
+            // Geometry phrase
+            for(int i=0;i<ver_num;++i){
+                // vertex shader(MVP) => perspective division => viewport transformation
+                sdptr_->vertexShader(i,objvertices[*it]);
+                ++it;
+            }
+            // Rasterize phrase
+            switch(otype){
+                case PrimitiveType::LINE:
+                    // drawLine();
+                    break;
+                case PrimitiveType::MESH:
+                    drawTriangle();
+                    break;
+                default:
+                    break;
+            }
+
+        }
+    }
+}
+
+/*
 // implement MVP for each Vertex
 void Render::pipeModel2Screen(){
     // for each object's each vertex,transform them to vec4 and implement mvpv
     auto& objects=scene_.getObjects();
     for(auto& obj:objects){
         glm::mat4 mat_model=obj->getModel();
-        auto otype=obj->getType();
+        // debugMatrix();
         auto& SVertices=screen_pos_[obj];
         auto& objvertices=obj->getVertices();
-        auto& objindices=obj->getIndices();
 
         // vertex shader(MVP) => perspective division => viewport transformation
         for( auto& v:objvertices){
-            // from model to Screen space
+            // from model to Screen space, note Z is in the range of [0,1]
             glm::vec4 npos=mat_viewport_*mat_perspective_*mat_view_*mat_model*glm::vec4(v.pos_,1.0f);
             npos=npos/npos.w;
             // update _sspace
             SVertices.push_back(npos);
         }
+    }
+}
+
+void Render::pipeFragmentShader(){
+    // assemble primitives and shade them
+    auto& objects=scene_.getObjects();
+    for(auto& obj:objects){
+        auto otype=obj->getPrimitiveType();
+        auto& SVertices=screen_pos_[obj];
+        auto& objvertices=obj->getVertices();
+        auto& objindices=obj->getIndices();
 
         // => fragement shader
-        if(otype==objecType::LINE){
+        if(otype==PrimitiveType::LINE){
             int v_num=objindices.size();
             //MUST TODO: Line Clipping
-            Point2d t1,t2;
+            glm::vec2 t1,t2;
             t1=SVertices[0];
             for(int i=1;i<v_num;++i){
                 t2=SVertices[i];
@@ -171,7 +221,7 @@ void Render::pipeModel2Screen(){
                 t1=t2;
             }
         }
-        else if(otype==objecType::MESH){
+        else if(otype==PrimitiveType::MESH){
             int v_num=objindices.size();
 
             for(int i=0;i<v_num;i+=3){
@@ -186,3 +236,5 @@ void Render::pipeModel2Screen(){
         }
     }
 }
+
+*/

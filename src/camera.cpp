@@ -26,17 +26,17 @@ glm::mat4 Camera::getViewMatrix()const{
 	view[0][0]=right_.x;
 	view[1][0]=right_.y;
 	view[2][0]=right_.z;
-	view[3][0]=-position_.x;
+	view[3][0]=-glm::dot(position_,right_);
 
 	view[0][1]=up_.x;
 	view[1][1]=up_.y;
 	view[2][1]=up_.z;
-	view[3][1]=-position_.y;
+	view[3][1]=-glm::dot(position_,up_);
 
 	view[0][2]=-front_.x;
 	view[1][2]=-front_.y;
 	view[2][2]=-front_.z;
-	view[3][2]=-position_.z;
+	view[3][2]=glm::dot(position_,front_);
 
 	return view;
 }
@@ -58,6 +58,9 @@ glm::mat4 Camera::getViewportMatrix()const{
 	v[3][0]=image_width_/2.0;
 	v[1][1]=image_height_/2.0;
 	v[3][1]=image_height_/2.0;
+	
+	v[2][2] = 0.5f;  // z from [-1, 1] to [0, 1]
+    v[3][2] = 0.5f;
 
 	return v;
 }

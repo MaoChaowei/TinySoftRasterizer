@@ -1,9 +1,5 @@
 #include"common_include.h"
 
-// struct Color{
-//     char r,g,b,a;
-//     Color():r(0),g(0),b(0),a(1){}
-// };
 
 class ColorBuffer{
 public:
@@ -58,28 +54,68 @@ private:
 class DepthBuffer{
 public:
     DepthBuffer(int width,int height){
+        width_=width;
+        height_=height;
+        pixel_num_=width*height;
         zbuffer_.resize(width*height);
+        std::fill(zbuffer_.begin(),zbuffer_.end(),1.0f);
     }
-    inline void reSize(int width,int height){
+    inline void reSetBuffer(int width,int height){
+        width_=width;
+        height_=height;
+        pixel_num_=width*height;
         zbuffer_.resize(width*height);
+        std::fill(zbuffer_.begin(),zbuffer_.end(),1.0f);
     }
 
-    void cleanZbuffer(){
-        // -1.0F is the farest in NDC space
-        std::fill(zbuffer_.begin(),zbuffer_.end(),-1.0f);
+    void clear(){
+        // 1.0F is the farest in NDC space
+        std::fill(zbuffer_.begin(),zbuffer_.end(),1.0f);
     }
 
     void setDepth(int x,int y,float depth){
-        zbuffer_[y*width_+x]=depth;
+        int idx=y*width_+x;
+        if(idx>=pixel_num_){
+            std::cerr<<"setDepth: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
+            exit(-1);
+        }
+        zbuffer_[idx]=depth;
     }
 
     inline std::shared_ptr<std::vector<float>> getZbuffer(){
         return std::make_shared<std::vector<float>>(zbuffer_);
     }
+    /**
+     * depth test on (x,y): check wheather current z-depth of (x,y) is closer than `depth`. if so,
+     * fail the depth test and return False, on the contrary, update z-buffer and return True. 
+     */
+    inline bool zTest(int x,int y,float depth){
+        int idx=y*width_+x;
+        if(idx>=pixel_num_){
+            std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
+            exit(-1);
+        }
+
+        if(depth>zbuffer_[idx]) 
+            return false;
+
+        zbuffer_[idx]=depth;
+        return true;
+    }
+
+    inline float getDepth(int x,int y){
+        int idx=y*width_+x;
+        if(idx>=pixel_num_){
+            std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
+            exit(-1);
+        }
+        return zbuffer_[idx];
+    }
 
 private:
     int width_;
     int height_;
+    int pixel_num_;
     std::vector<float> zbuffer_;
 
 };

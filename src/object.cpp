@@ -1,6 +1,7 @@
 #include"object.h"
 #include <iomanip>
 #include<glm/gtx/hash.hpp>
+#include"algorithm"
 
 namespace object_tools{
 
@@ -29,9 +30,9 @@ Vertex extractVertex(const tinyobj::attrib_t& attrib,const tinyobj::index_t idx)
     }
 
     //vertex colors
-    tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
-    tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
-    tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+    tinyobj::real_t red   = std::min(attrib.colors[3*size_t(idx.vertex_index)+0]*255.0,255.0);
+    tinyobj::real_t green = std::min(attrib.colors[3*size_t(idx.vertex_index)+1]*255.0,255.0);
+    tinyobj::real_t blue  = std::min(attrib.colors[3*size_t(idx.vertex_index)+2]*255.0,255.0);
     temp.color_=glm::vec4(red,green,blue,1.0f);
 
     return temp;
@@ -64,9 +65,6 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
     }
 }
 
-void Mesh::setTriangleDemo() {
-    // TODO
-}
 
 
 void Mesh::printInfo() const {
@@ -189,12 +187,12 @@ void ObjLoader::setObject(){
         if(shapes[i].mesh.indices.size()){
             auto mesh = std::make_unique<Mesh>();
             mesh->initObject(shapes[i],attrib);
-            meshes_.push_back(std::move(mesh)); 
+            all_objects_.push_back(std::move(mesh));
         }
         if(shapes[i].lines.indices.size()){
             auto line = std::make_unique<Line>();
             line->initObject(shapes[i],attrib);
-            lines_.push_back(std::move(line)); 
+            all_objects_.push_back(std::move(line));
         }
         // todo : dot
     }

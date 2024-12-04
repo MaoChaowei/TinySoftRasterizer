@@ -16,14 +16,10 @@ public:
         ObjLoader objloader(filename);
 
         // update all_objects_
-        auto& objmesh=objloader.getMeshes();
-        auto& objline=objloader.getLines();
-
-        for(auto& m:objmesh){
-            all_objects_.push_back(std::move(m));
-        }
-        for(auto& li:objline){
-            all_objects_.push_back(std::move(li));
+        auto& objs=objloader.getObjects();
+        
+        for(auto& item:objs){
+            all_objects_.push_back(std::move(item));
         }
     }
 
@@ -35,6 +31,8 @@ private:
     
     // 管理所有的ObjectDesc对象
     std::vector<std::shared_ptr<ObjectDesc>> all_objects_;
+    // textures
+   
     // BVH root node
 
 };
