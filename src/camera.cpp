@@ -15,6 +15,57 @@ void Camera::updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float f
 
 }
 
+void Camera::setMovement(float spd,float sensi){
+	speed_=spd;
+	sensitivity_=sensi;
+}
+
+void Camera::processKeyboard(CameraMovement type){
+	switch(type){
+		case CameraMovement::FORWARD:
+			position_+=glm::vec3(speed_)*front_;
+			break;
+		case CameraMovement::BACKWARD:
+			position_+=glm::vec3(-speed_)*front_;
+			break;
+		case CameraMovement::LEFT:
+			position_+=glm::vec3(-speed_)*right_;
+			break;
+		case CameraMovement::RIGHT:
+			position_+=glm::vec3(speed_)*right_;
+			break;
+		default:
+			break;
+	}
+}
+
+
+void Camera::processMouseMovement(float xoffset, float yoffset) {
+
+    xoffset *= sensitivity_;
+    yoffset *= sensitivity_;
+
+    yaw_ += xoffset;
+    pitch_ += yoffset;
+
+    // in case of turning over
+    if (pitch_ > 89.0f) pitch_ = 89.0f;
+    if (pitch_ < -89.0f) pitch_ = -89.0f;
+
+    updateCameraVectors();
+}
+
+void Camera::updateCameraVectors() {
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw_)) * cos(glm::radians(pitch_));
+    direction.y = sin(glm::radians(pitch_));
+    direction.z = sin(glm::radians(yaw_)) * cos(glm::radians(pitch_));
+    front_ = glm::normalize(direction);
+
+    right_ = glm::normalize(glm::cross(front_, glm::vec3(0.0f, 1.0f, 0.0f)));
+    up_ = glm::normalize(glm::cross(right_, front_));
+}
+
 /**
  * @brief Calculate the view matrix. Aligns `right_` to x-axis, `up_` to y-axis,
  *        `front_` to negative z-axis, and sets `position_` to the origin.

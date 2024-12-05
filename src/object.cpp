@@ -2,6 +2,7 @@
 #include <iomanip>
 #include<glm/gtx/hash.hpp>
 #include"algorithm"
+#include"utils.h"
 
 namespace object_tools{
 
@@ -44,7 +45,7 @@ Vertex extractVertex(const tinyobj::attrib_t& attrib,const tinyobj::index_t idx)
 
 //---------------------Mesh--------------------------//
 
-void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib){
+void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals){
     name_=info.name;
     face_num_=info.mesh.num_face_vertices.size();
 
@@ -67,14 +68,24 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
         if(idx.normal_index<0) has_normal_=false;
         if(idx.texcoord_index<0) has_uv_=false;
     }
+    int sign=flip_normals?-1:1;
     // calculate face and vertex normals
     for(int i=0;i<face_num_;++i){
         glm::vec3 a=vertices_[indices_[i*3+0]].pos_;
         glm::vec3 b=vertices_[indices_[i*3+1]].pos_;
         glm::vec3 c=vertices_[indices_[i*3+2]].pos_;
-        glm::vec3 ab=b-a;
-        glm::vec3 ac=c-a;
-        face_normals_.push_back(glm::normalize(glm::cross(ab,ac)));
+        // utils::printvec3(a,"a");
+        // utils::printvec3(b,"b");
+        // utils::printvec3(c,"c");
+        glm::vec3 cb=b-c;
+        glm::vec3 ba=a-b;
+        // utils::printvec3(cb,"cb");
+        // utils::printvec3(ba,"ba");
+        glm::vec3 nn=glm::vec3(sign)*glm::cross(cb,ba);
+        // utils::printvec3(nn,"nn");
+        // std::cout<<std::endl;
+
+        face_normals_.push_back(nn);
         if(!has_normal_){
             for(int t=0;t<3;++t){
                 vertices_[indices_[i*3+t]].norm_+=face_normals_[i];
@@ -124,7 +135,7 @@ void Mesh::printInfo() const {
 
 //---------------------Line--------------------------//
 
-void Line::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib){
+void Line::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals){
     name_=info.name;
     line_num_=info.lines.indices.size()+1;
 
@@ -208,7 +219,7 @@ void ObjLoader::setObject(){
     for(int i=0;i<total_shapes_;++i){
         if(shapes[i].mesh.indices.size()){
             auto mesh = std::make_unique<Mesh>();
-            mesh->initObject(shapes[i],attrib);
+            mesh->initObject(shapes[i],attrib,flip_normals_);
             all_objects_.push_back(std::move(mesh));
         }
         if(shapes[i].lines.indices.size()){

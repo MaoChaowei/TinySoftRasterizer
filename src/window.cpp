@@ -1,15 +1,40 @@
-#pragma once
 #include"window.h"
+#include"softrender/render.h"
 
 /* 一些回调函数  */ 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+void Window::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
-}
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
-{
+} 
+
+void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
-}   
+
+    Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (instance && instance->render_) {
+        instance->render_->handleKeyboardInput(key, action);
+        instance->render_->updateViewMatrix();
+    }
+}
+
+void Window::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (instance && instance->render_) {
+        if (instance->firstMouse_) {
+            instance->lastX_ = xpos;
+            instance->lastY_ = ypos;
+            instance->firstMouse_ = false;
+        }
+
+        float xoffset = xpos - instance->lastX_;
+        float yoffset = instance->lastY_ - ypos; // 注意 y 方向是反的
+        instance->lastX_ = xpos;
+        instance->lastY_ = ypos;
+
+        instance->render_->handleMouseInput(xoffset, yoffset);
+        instance->render_->updateViewMatrix();
+    }
+}
 
 // 初始化glfw窗口
 int Window::init(const char* name,int width,int height)
@@ -39,14 +64,15 @@ int Window::init(const char* name,int width,int height)
     height_=height;
 
     glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
-    glfwSetKeyCallback(window_, key_callback);  
+    glfwSetKeyCallback(window_, keyCallback);  
+    glfwSetCursorPosCallback(window_, mouseCallback);
+    glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
 
     this->initData();
     this->initShaderProgram();    // init shader program
 
 	return 0;
 }
-
 
 // 初始化着色器
 void Window::initShaderProgram() {

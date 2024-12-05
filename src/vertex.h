@@ -8,6 +8,10 @@ struct Vertex{
     glm::vec4 color_;
     glm::vec2 uv_;
 
+    glm::vec3 w_pos_;    // world space position
+    glm::vec3 s_pos_;    // screen space position  // x,y in screen-space and z in [0,1] where 0 is the near-flat 
+    glm::vec3 w_norm_;   // world space norm       // n[0~2]:normals of vertices in world space, that is norm_world=Model_mat^-1^T*norm_model; n[3]is the face normal
+
     Vertex():pos_(glm::vec3(0.f)),norm_(glm::vec3(0.f)),color_(glm::vec4(-1.f)),uv_(glm::vec2(-1.f)){};
 };
 

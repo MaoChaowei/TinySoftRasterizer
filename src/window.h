@@ -3,12 +3,22 @@
 #include"common_include.h"
 #include <GLAD/glad.h>
 #include<GLFW/glfw3.h>
+// forward declair
+class Render;
 
 class Window{
 public:
+    Window(){}
+    Window(const char* name,int width,int height){
+        init(name,width,height);
+    }
 
     // 初始化glfw窗口
     int init(const char* name,int width,int height);
+
+    void bindRender(Render* rptr){
+        render_=rptr;
+    }
     // 初始化着色器
     void initShaderProgram();
     // 初始化纹理和VAO
@@ -23,10 +33,18 @@ public:
 
 
 private:
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void mouseCallback(GLFWwindow* window, double xpos, double ypos);
+    static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
     GLFWwindow* window_;
+    Render* render_;
     unsigned int shaderProgram_;
     unsigned int width_ , height_;
     unsigned int texture_ , VAO_;
+    
+    float lastX_, lastY_; // 鼠标位置
+    bool firstMouse_=true;     
 
     // 顶点着色器源代码
     const char* vertexShaderSource = R"(

@@ -22,6 +22,7 @@ int main(void) {
     
     Render render;
     render.setScene(std::string("assets/model/cube.obj"));
+    render.addScene(std::string("assets/model/cube.obj"));
 
     auto& camera=render.getCamera();
     auto& colorbuffer=render.getColorBuffer();
@@ -51,6 +52,7 @@ int main(void) {
     // init glfw window and glad shader
     Window window;
     window.init("SRender", width, height);
+    window.bindRender(&render);
 
 
     int cnt=0;
@@ -65,14 +67,22 @@ int main(void) {
            
             static int angle=0;
             angle=(++angle)%360;
-            glm::vec3 model_position{20,20,-100};
+            glm::vec3 model_position1{20,20,-100};
             // M=T*R*S
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position1);
             glm::mat4 rotate=glm::rotate(glm::mat4(1.0f), glm::radians((float)angle), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 model_matrix=translation*rotate*scale;
 
             objs[0]->setModel2World(model_matrix);
+
+            glm::vec3 model_position2{-20,-20,-50};
+            // M=T*R*S
+            glm::mat4 translation2 = glm::translate(glm::mat4(1.0f),model_position2);
+            glm::mat4 model_matrix2=translation2*rotate*scale;
+
+            objs[1]->setModel2World(model_matrix2);
+
         }
         
         /* RENDERING */
@@ -88,7 +98,7 @@ int main(void) {
         // if (duration < FRAME_DURATION) {
         //     std::this_thread::sleep_for(std::chrono::milliseconds((long)(FRAME_DURATION - duration)));
         // }
-        std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<std::endl;
+        // std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<std::endl;
 
         // postrender events
         window.swapBuffer();

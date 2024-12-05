@@ -26,6 +26,7 @@ set(LIB_LINKS
 # 定义源代码文件
 file(GLOB SOURCE_FILES
     ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/*.cpp
     ${CMAKE_SOURCE_DIR}/src/softrender/*.cpp
 )
 

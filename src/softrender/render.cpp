@@ -80,8 +80,88 @@ void Render::drawTriangle(){
     }
 }
 
+// in screen space
+bool Render::backCulling(const glm::vec3& face_norm,const glm::vec3& dir) const {
+    return glm::dot(dir,face_norm) <= 0;
+}
 
 
+void Render::pipelineBegin(){
+    if(is_init_==false){
+        std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
+        return;
+    }
+    
+    auto& objects=scene_.getObjects();
+    for(auto& obj:objects){
+
+        glm::mat4 mat_model=obj->getModel();        // debugMatrix();
+        auto otype=obj->getPrimitiveType();
+        auto& objvertices=obj->getVertices();
+        auto& objindices=obj->getIndices();
+        auto& objfacenorms=obj->getFaceNorms();
+
+        // calculate all the matrix operations and send to shader
+        glm::mat4 transform=mat_viewport_*mat_perspective_*mat_view_*mat_model;
+        glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
+        sdptr_->bindTransform(&transform);
+        sdptr_->bindNormalMat(&normal_mat);
+        sdptr_->bindModelMat(&mat_model);
+
+        glm::vec4 npos;
+        int ver_num=int(otype);
+        sdptr_->setPrimitiveType(otype);
+
+        /*----- Geometry phrase --------*/
+        // for each objects' each vetices, go through VS
+        for(auto& v:objvertices){
+            sdptr_->vertexShader(v);
+        }
+
+        /*----- Rasterize phrase --------*/
+        // for each primitive's each fragment, go through FS
+        int face_cnt=0;
+        for(auto it=objindices.begin();it!=objindices.end();){
+            // assembly primitive
+            const Vertex* v1=&objvertices[*it++];
+            const Vertex* v2=&objvertices[*it++];
+            const Vertex* v3=&objvertices[*it++];
+
+            sdptr_->assemblePrimitive(v1,v2,v3);
+
+            // back culling
+            if(sdptr_->checkFlag(ShaderSwitch::BackCulling)){
+                glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt++],0.f);
+                glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
+                if(backCulling(norm,dir)==true){
+                    // std::cout<<"culling:";
+                    // utils::printvec3(norm,"norm");
+                    continue;
+                }
+                // std::cout<<"showing:";
+                // utils::printvec3(norm,"norm");
+            }
+
+            // render
+            switch(otype){
+                case PrimitiveType::LINE:
+                    // drawLine();
+                    break;
+                case PrimitiveType::MESH:
+                    drawTriangle();
+                    break;
+                default:
+                    break;
+            }
+
+        }
+
+    }
+}
+
+
+
+/*
 void Render::pipelineBegin(){
     if(is_init_==false){
         std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
@@ -108,7 +188,7 @@ void Render::pipelineBegin(){
         sdptr_->setPrimitiveType(otype);
 
         for(auto it=objindices.begin();it!=objindices.end();){
-            /*----- Geometry phrase --------*/
+
             for(int i=0;i<ver_num;++i){
                 // vertex shader(MVP) => perspective division => viewport transformation
                 sdptr_->vertexShader(i,objvertices[*it]);
@@ -116,10 +196,8 @@ void Render::pipelineBegin(){
             }
             // back culling
             if(sdptr_->checkFlag(ShaderSwitch::BackCulling)){
-                
-            }
 
-            /*----- Rasterize phrase --------*/
+            }
             switch(otype){
                 case PrimitiveType::LINE:
                     // drawLine();
@@ -134,6 +212,7 @@ void Render::pipelineBegin(){
         }
     }
 }
+*/
 
 /*
 // implement MVP for each Vertex
@@ -195,8 +274,6 @@ void Render::pipeFragmentShader(){
 }
 
 */
-
-
 
 // go through all the pixels inside the AABB, that means didn't use coherence here
 /*void Render::drawTriangle(TriangelRecord& triangle){

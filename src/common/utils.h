@@ -4,14 +4,6 @@
 // some small functions
 namespace utils{
 
-
-
-#define IN_NDC(x) (((x)>=-1.0f)&&((x)<=1.0f))
-
-inline bool outNDC(const glm::vec4& pos){
-    return IN_NDC(pos.x)&&IN_NDC(pos.y)&&IN_NDC(pos.z);
-}
-
 // get the barycenter of goal_p in the p1-p2-p3 triangle
 inline glm::vec3 getBaryCenter(const glm::vec2 p1, const glm::vec2 p2, const glm::vec2 p3, const glm::vec2 goal_p) {
     float denom = (p2.y - p3.y) * (p1.x - p3.x) + (p3.x - p2.x) * (p1.y - p3.y);
@@ -24,5 +16,7 @@ inline glm::vec3 getBaryCenter(const glm::vec2 p1, const glm::vec2 p2, const glm
 
     return glm::vec3(lambda1, lambda2, lambda3);
 }
+
+void printvec3(glm::vec3 v,std::string str);
 
 }

@@ -21,11 +21,12 @@ public:
     void addTransform(glm::mat4& model){ mat_model_=model*mat_model_;}
 
     //fill the `vector<Vertex> vertices_` 
-    virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib)=0;
+    virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false)=0;
     virtual void printInfo() const=0;
     virtual void clear()=0;
 
     inline std::vector<Vertex>& getVertices() { return vertices_;}
+    inline std::vector<glm::vec3>& getFaceNorms() { return face_normals_;}
     inline const std::vector<uint32_t>& getIndices()const {return indices_;}
     inline std::string getName()const{return name_;}
     inline PrimitiveType getPrimitiveType()const{ return type_;}
@@ -40,6 +41,8 @@ protected:
     std::vector<Vertex> vertices_;  
     // contains indices to `vertices_`,and every three vertices constitude a face
     std::vector<uint32_t> indices_;
+    // the normal for all faces, only availabel for MESH
+    std::vector<glm::vec3> face_normals_;
 
     glm::mat4 mat_model_=glm::mat4(1.0f);
 
@@ -52,7 +55,7 @@ public:
     }
   
     // note the obj must be triangulated
-    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
+    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
 
     void clear() override{
         vertices_.clear();
@@ -68,7 +71,6 @@ private:
 
     // the total number of faces, hence vertices num is trible
     unsigned long long face_num_;   
-    std::vector<glm::vec3> face_normals_;
 
     
 };
@@ -79,7 +81,7 @@ public:
         type_=PrimitiveType::LINE;
     }
 
-    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
+    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
 
     void clear() override{
         vertices_.clear();
@@ -101,7 +103,7 @@ public:
         type_=PrimitiveType::POINT;
     }
 //TODO
-    // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib) override;
+    // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals) override;
 
     // void clear() override;
 
@@ -126,6 +128,10 @@ public:
         filename_=str;
         readObjFile(str);
         setObject();
+    }
+
+    void setFlags(bool flipn){
+        flip_normals_=flipn;
     }
 
     void setFileAndRead(std::string str){
@@ -155,6 +161,8 @@ private:
     tinyobj::ObjReader reader_;
 
     unsigned int total_shapes_;
+
+    bool flip_normals_=false;
 
     std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
 

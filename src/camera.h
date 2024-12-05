@@ -2,6 +2,12 @@
 #pragma once
 #include"common_include.h"
 
+enum class CameraMovement{
+	FORWARD,
+	BACKWARD,
+	LEFT,
+	RIGHT,
+};
 
 //@todo: interaction operations, such as move and rotate
 class Camera{
@@ -55,12 +61,24 @@ public:
     inline const int getImageWidth()const{return this->image_width_;}
     inline const int getImageHeight()const{return this->image_height_;}
 
+	// ui
+	void setMovement(float spd,float sensi);
+	void processKeyboard(CameraMovement type);
+	void processMouseMovement(float xoffset, float yoffset);
+	void updateCameraVectors();
+
+
 private:
 	// Camera coordinate system in world coordinate system
 	glm::vec3 position_;
 	glm::vec3 front_;	// real direction
 	glm::vec3 right_;
 	glm::vec3 up_;
+
+	float speed_=1.0f;
+	float sensitivity_=1.0f;
+	float yaw_;    // horizental
+    float pitch_;  // vertical
 
 	// define the image and near flat
 	// vertical fov
