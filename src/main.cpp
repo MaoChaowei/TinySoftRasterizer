@@ -32,7 +32,8 @@ int main(void) {
     int height=camera.getImageHeight();
     
     RenderSetting setting;
-    setting.shader_type=ShaderType::Color;
+    setting.shader_setting.type=ShaderType::Color;
+    setting.shader_setting.flags=ShaderSwitch::ALL_ON;
 
     render.pipelineInit(setting);
     

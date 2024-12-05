@@ -10,7 +10,8 @@
 
 
 struct RenderSetting{
-    ShaderType shader_type=ShaderType::Depth;
+    // ShaderType shader_type=ShaderType::Depth;
+    ShaderSetting shader_setting;
 };
 
 class Render{
@@ -41,11 +42,6 @@ public:
 
     void pipeFragmentShader();
 
-    // build Accelerate structure in Screen space
-    // void createBVH();
-
-     // calculate transformation from wold-space to viewport-space
-    // x and y in the range of [image]^[image],z in the range of [-1,1]; 
     // once change camera property, we need this function to update VPV-matrix
     void updateMatrix();
 
@@ -53,16 +49,6 @@ public:
 
 
     // rastrization each frame, call setTransformation before this
-    /*void pipelineBegin(){
-        if(is_init_==false){
-            std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
-            return;
-        }
-
-        pipeModel2Screen();
-        pipeFragmentShader();
-
-    }*/
     void pipelineBegin();
 
     // call this at the end of each frame's rendering!
@@ -72,9 +58,8 @@ public:
         zbuffer_.clear();
     }
 
-    // draw line
-    void drawLine( glm::vec2 t1, glm::vec2 t2,const glm::vec4 color);
-    // void drawTriangle(TriangelRecord& triangle);
+    // rasterize
+    void drawLine();
     void drawTriangle();
 
     inline const Camera& getCamera()const{ return camera_;}

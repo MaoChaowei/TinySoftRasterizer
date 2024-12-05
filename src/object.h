@@ -17,54 +17,31 @@ enum class PrimitiveType{
 // the base class for all kinds of objects to be rendered
 class ObjectDesc{
 public:
-    void setModel2World(glm::mat4& model){
-        mat_model_=model;
-    }
-    void addTransform(glm::mat4& model){
-        mat_model_=model*mat_model_;
-    }
-    /**
-     * @brief fill the `vector<Vertex> vertices_` 
-     * 
-     * @param info 
-     * @param attrib 
-     */
+    void setModel2World(glm::mat4& model){ mat_model_=model; }
+    void addTransform(glm::mat4& model){ mat_model_=model*mat_model_;}
+
+    //fill the `vector<Vertex> vertices_` 
     virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib)=0;
     virtual void printInfo() const=0;
     virtual void clear()=0;
 
-    inline std::vector<Vertex>& getVertices() {
-        return vertices_;
-    }
-    inline const std::vector<uint32_t>& getIndices()const {
-        return indices_;
-    }
-
-    inline std::string getName()const{
-        return name_;
-    }
-
-    inline PrimitiveType getPrimitiveType()const{
-        return type_;
-    }
-
-    inline glm::mat4 getModel()const{
-        return mat_model_;
-    }
+    inline std::vector<Vertex>& getVertices() { return vertices_;}
+    inline const std::vector<uint32_t>& getIndices()const {return indices_;}
+    inline std::string getName()const{return name_;}
+    inline PrimitiveType getPrimitiveType()const{ return type_;}
+    inline glm::mat4 getModel()const{ return mat_model_; }
 
 
 protected:
     std::string name_;
+    PrimitiveType type_;
 
     // all the information of vertices
     std::vector<Vertex> vertices_;  
     // contains indices to `vertices_`,and every three vertices constitude a face
     std::vector<uint32_t> indices_;
 
-    // translation in world space
     glm::mat4 mat_model_=glm::mat4(1.0f);
-
-    PrimitiveType type_;
 
 };
 
@@ -83,10 +60,15 @@ public:
     
     void printInfo() const override;
 
+public:
+    bool has_normal_=true;
+    bool has_uv_=true;
+
 private:
 
     // the total number of faces, hence vertices num is trible
     unsigned long long face_num_;   
+    std::vector<glm::vec3> face_normals_;
 
     
 };
@@ -174,9 +156,6 @@ private:
 
     unsigned int total_shapes_;
 
-    // move this to `Scene`
-    // std::vector<std::unique_ptr<Mesh>> meshes_;
-    // std::vector<std::unique_ptr<Line>> lines_;
     std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
 
 };

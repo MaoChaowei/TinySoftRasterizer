@@ -8,9 +8,7 @@ struct Vertex{
     glm::vec4 color_;
     glm::vec2 uv_;
 
-    // bool ignore=false;   // 记忆化搜索，防止重复变换
-    // glm::vec3 screen_pos_;
-    Vertex():pos_(glm::vec3(0.f)),norm_(glm::vec3(-1.f)),color_(glm::vec4(-1.f)),uv_(glm::vec2(-1.f)){};
+    Vertex():pos_(glm::vec3(0.f)),norm_(glm::vec3(0.f)),color_(glm::vec4(-1.f)),uv_(glm::vec2(-1.f)){};
 };
 
 // 为 Vertex 结构体重载 operator<<

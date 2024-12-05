@@ -1,8 +1,6 @@
 #include"render.h"
 
 
-
-
 void Render::updateMatrix(){
     mat_view_=camera_.getViewMatrix();
     mat_perspective_=camera_.getPerspectiveMatrix();
@@ -13,15 +11,19 @@ void Render::pipelineInit(const RenderSetting & setting){
     // init transformation
     updateMatrix();
     setting_=setting;
+
     // init shader
     sdptr_=std::make_shared<Shader>();
-    sdptr_->setShaderType(setting.shader_type);
+    sdptr_->setShaderSetting(setting.shader_setting);
 
     is_init_=true;
 }
 
 // TODO: make sure points are legal
-void Render::drawLine( glm::vec2 t1, glm::vec2 t2,const glm::vec4 color){
+void Render::drawLine(){
+    glm::vec2 t1=sdptr_->getPoint2d(0);
+    glm::vec2 t2=sdptr_->getPoint2d(1);
+    glm::vec4 color(255.0f);
     // make sure: x-axis is less steep and t1 is the left point
     bool swap_flag=0;
     if(std::abs(t1.x-t2.x)<std::abs(t1.y-t2.y)){
@@ -59,61 +61,7 @@ void Render::drawLine( glm::vec2 t1, glm::vec2 t2,const glm::vec4 color){
 }
 
 
-// go through all the pixels inside the AABB, that means didn't use coherence here
-/*void Render::drawTriangle(TriangelRecord& triangle){
-    AABB2d aabb;
-    aabb.containTriangel(triangle.p[0],triangle.p[1],triangle.p[2]);
-    aabb.clipAABB(box_);
-    if(!aabb.valid)
-        return;
-    
-    for(int y=aabb.min.y;y<=aabb.max.y;++y){
-        for(int x=aabb.min.x;x<=aabb.max.x;++x){
-            // get barycentric coordinate~
-            glm::vec3 bary=utils::getBaryCenter(triangle.p[0],triangle.p[1],triangle.p[2],glm::vec2(x,y));
-            if(bary.x<0||bary.y<0||bary.z<0)
-                continue;
-
-            // depth test
-            float depth=glm::dot(glm::vec3(triangle.p[0].z,triangle.p[1].z,triangle.p[2].z),bary);
-            if(zbuffer_.zTest(x,y,depth)==false)
-                continue;
-
-            // get uv or color
-            if(setting_.shader_type==ShaderType::Ordinary){
-                if(triangle.v[0]->uv_[0]>=0){
-                    glm::vec2 uv;
-                    for(int i=0;i<2;++i){
-                        uv[i]=glm::dot(glm::vec3(triangle.v[0]->uv_[i],triangle.v[1]->uv_[i],
-                        triangle.v[2]->uv_[i]),bary);
-                    }
-                    // glm::vec4 color=;
-                    // colorbuffer_.setPixel(x,y,color);
-                }
-                else if(triangle.v[0]->color_[0]>=0){
-                    glm::vec4 color;
-                    for(int i=0;i<4;++i){
-                        color[i]=glm::dot(glm::vec3(triangle.v[0]->color_[i],triangle.v[1]->color_[i],
-                        triangle.v[2]->color_[i]),bary);
-                    }
-                    colorbuffer_.setPixel(x,y,color);
-                }
-                else{   
-                    // default color : White  
-                    colorbuffer_.setPixel(x,y,glm::vec4(255.0,255.0,255.0,1));
-                }
-            }
-            else if(setting_.shader_type==ShaderType::Depth){
-                    colorbuffer_.setPixel(x,y,glm::vec4(depth*255.f,depth*255.f,depth*255.f,1));
-            }
-            else{
-                std::cout<<"unknown `setting_.shader_type`...tobedone\n";
-            }
-        }
-    }
-}*/
-
-// go through all the pixels inside the AABB, that means didn't use coherence here
+// go through all the pixels inside the AABB, that means I didn't use coherence here
 void Render::drawTriangle(){
     AABB2d aabb;
     aabb.containTriangel(sdptr_->getPoint2d(0),sdptr_->getPoint2d(1),sdptr_->getPoint2d(2));
@@ -142,6 +90,8 @@ void Render::pipelineBegin(){
     // for each object's each vertex
     auto& objects=scene_.getObjects();
     for(auto& obj:objects){
+        sdptr_->clear();                            // clean the context of the shader
+
         glm::mat4 mat_model=obj->getModel();        // debugMatrix();
         auto otype=obj->getPrimitiveType();
         auto& objvertices=obj->getVertices();
@@ -149,20 +99,27 @@ void Render::pipelineBegin(){
 
         // calculate all the matrix operations and send to shader
         glm::mat4 transform=mat_viewport_*mat_perspective_*mat_view_*mat_model;
+        glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
         sdptr_->bindTransform(&transform);
+        sdptr_->bindNormalMat(&normal_mat);
 
         glm::vec4 npos;
         int ver_num=int(otype);
         sdptr_->setPrimitiveType(otype);
 
         for(auto it=objindices.begin();it!=objindices.end();){
-            // Geometry phrase
+            /*----- Geometry phrase --------*/
             for(int i=0;i<ver_num;++i){
                 // vertex shader(MVP) => perspective division => viewport transformation
                 sdptr_->vertexShader(i,objvertices[*it]);
                 ++it;
             }
-            // Rasterize phrase
+            // back culling
+            if(sdptr_->checkFlag(ShaderSwitch::BackCulling)){
+                
+            }
+
+            /*----- Rasterize phrase --------*/
             switch(otype){
                 case PrimitiveType::LINE:
                     // drawLine();
@@ -238,3 +195,59 @@ void Render::pipeFragmentShader(){
 }
 
 */
+
+
+
+// go through all the pixels inside the AABB, that means didn't use coherence here
+/*void Render::drawTriangle(TriangelRecord& triangle){
+    AABB2d aabb;
+    aabb.containTriangel(triangle.p[0],triangle.p[1],triangle.p[2]);
+    aabb.clipAABB(box_);
+    if(!aabb.valid)
+        return;
+    
+    for(int y=aabb.min.y;y<=aabb.max.y;++y){
+        for(int x=aabb.min.x;x<=aabb.max.x;++x){
+            // get barycentric coordinate~
+            glm::vec3 bary=utils::getBaryCenter(triangle.p[0],triangle.p[1],triangle.p[2],glm::vec2(x,y));
+            if(bary.x<0||bary.y<0||bary.z<0)
+                continue;
+
+            // depth test
+            float depth=glm::dot(glm::vec3(triangle.p[0].z,triangle.p[1].z,triangle.p[2].z),bary);
+            if(zbuffer_.zTest(x,y,depth)==false)
+                continue;
+
+            // get uv or color
+            if(setting_.shader_type==ShaderType::Ordinary){
+                if(triangle.v[0]->uv_[0]>=0){
+                    glm::vec2 uv;
+                    for(int i=0;i<2;++i){
+                        uv[i]=glm::dot(glm::vec3(triangle.v[0]->uv_[i],triangle.v[1]->uv_[i],
+                        triangle.v[2]->uv_[i]),bary);
+                    }
+                    // glm::vec4 color=;
+                    // colorbuffer_.setPixel(x,y,color);
+                }
+                else if(triangle.v[0]->color_[0]>=0){
+                    glm::vec4 color;
+                    for(int i=0;i<4;++i){
+                        color[i]=glm::dot(glm::vec3(triangle.v[0]->color_[i],triangle.v[1]->color_[i],
+                        triangle.v[2]->color_[i]),bary);
+                    }
+                    colorbuffer_.setPixel(x,y,color);
+                }
+                else{   
+                    // default color : White  
+                    colorbuffer_.setPixel(x,y,glm::vec4(255.0,255.0,255.0,1));
+                }
+            }
+            else if(setting_.shader_type==ShaderType::Depth){
+                    colorbuffer_.setPixel(x,y,glm::vec4(depth*255.f,depth*255.f,depth*255.f,1));
+            }
+            else{
+                std::cout<<"unknown `setting_.shader_type`...tobedone\n";
+            }
+        }
+    }
+}*/

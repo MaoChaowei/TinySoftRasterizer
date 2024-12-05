@@ -50,6 +50,8 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
 
     std::unordered_map<Vertex,uint32_t> ver2idx;
 
+    has_normal_=has_uv_=true;
+
     for(auto& idx:info.mesh.indices){
         Vertex v=object_tools::extractVertex(attrib,idx);
         if(ver2idx.find(v)!=ver2idx.end()){
@@ -62,7 +64,27 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
             indices_.push_back(t);
             ver2idx[v]=t;
         }
+        if(idx.normal_index<0) has_normal_=false;
+        if(idx.texcoord_index<0) has_uv_=false;
     }
+    // calculate face and vertex normals
+    for(int i=0;i<face_num_;++i){
+        glm::vec3 a=vertices_[indices_[i*3+0]].pos_;
+        glm::vec3 b=vertices_[indices_[i*3+1]].pos_;
+        glm::vec3 c=vertices_[indices_[i*3+2]].pos_;
+        glm::vec3 ab=b-a;
+        glm::vec3 ac=c-a;
+        face_normals_.push_back(glm::normalize(glm::cross(ab,ac)));
+        if(!has_normal_){
+            for(int t=0;t<3;++t){
+                vertices_[indices_[i*3+t]].norm_+=face_normals_[i];
+            }
+        }
+    }
+    for(auto& v:vertices_){
+        v.norm_=glm::normalize(v.norm_);
+    }
+    has_normal_=true;
 }
 
 
