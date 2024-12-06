@@ -221,11 +221,14 @@ void ObjLoader::setObject(){
             auto mesh = std::make_unique<Mesh>();
             mesh->initObject(shapes[i],attrib,flip_normals_);
             all_objects_.push_back(std::move(mesh));
+            total_face_num_+=shapes[i].mesh.num_face_vertices.size();
+            total_vertex_num_+=shapes[i].mesh.indices.size();
         }
         if(shapes[i].lines.indices.size()){
             auto line = std::make_unique<Line>();
             line->initObject(shapes[i],attrib);
             all_objects_.push_back(std::move(line));
+            total_vertex_num_+=shapes[i].lines.indices.size();
         }
         // todo : dot
     }

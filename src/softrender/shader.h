@@ -77,15 +77,20 @@ public:
      * @brief vertex shader: convert vertex from model-space to screen-space 
      *        => x and y in [width,height], z in [0,1];
      *        convert normals into world space
-     * @param idx : vertex shader is per-fragment, and I use `idx` to define which vertex it is in its Primitive 
-     * @param v : the original vertex information
+     * @param v : the vertex information holder
      */
     inline void vertexShader(Vertex& v ){
         glm::vec4 npos=(*transform_)*glm::vec4(v.pos_,1.0f);
-        v.s_pos_=npos/npos.w;
-        v.w_pos_=(*model_mat_)*glm::vec4(v.pos_,1.0f);
-        
-        v.w_norm_=(*normal_mat_)*glm::vec4(v.norm_,0);
+        if(npos.w>0){
+            v.s_pos_=npos/npos.w;
+
+            v.w_pos_=(*model_mat_)*glm::vec4(v.pos_,1.0f);
+            v.w_norm_=(*normal_mat_)*glm::vec4(v.norm_,0);
+            v.discard=false;
+        }
+        else{   // need to be clipped
+            v.discard=true;
+        }
     }
 
     /**
@@ -102,25 +107,39 @@ public:
         auto& v3=content_.v[2];
 
         if(otype==PrimitiveType::MESH){
-            // getBaryCenter
-            glm::vec3 bary=utils::getBaryCenter(v1->s_pos_,v2->s_pos_,v3->s_pos_,glm::vec2(x,y));
-            if(bary.x<0||bary.y<0||bary.z<0)
+            // TODO: clipping
+            if(v1->discard||v2->discard||v3->discard)
                 return false;
 
+            // getBaryCenter
+            glm::vec3 bary=utils::getBaryCenter(v1->s_pos_,v2->s_pos_,v3->s_pos_,glm::vec2(x,y));
+            glm::vec3 correct_bary;
+            if(bary.x<0||bary.y<0||bary.z<0)
+                return false;
+            
+            // perspective correct interpolation
+            for(int i=0;i<3;++i)
+                correct_bary[i]=bary[i]/content_.v[i]->w_pos_.z;
+
+            float z_n=1.0/(correct_bary[0]+correct_bary[1]+correct_bary[2]);
+
+            for(int i=0;i<3;++i)
+                correct_bary[i]*=z_n;
+
             // depth
-            content_.depth=glm::dot(glm::vec3(v1->s_pos_.z,v2->s_pos_.z,v3->s_pos_.z),bary);
+            content_.depth=glm::dot(glm::vec3(v1->s_pos_.z,v2->s_pos_.z,v3->s_pos_.z),correct_bary);
             if(checkFlag(ShaderSwitch::EarlyZtest)&&cur_depth<content_.depth)
                 return false;
 
             // normal 
             for(int i=0;i<3;++i)
-                content_.normal[i]=glm::dot(glm::vec3(v1->w_norm_[i],v2->w_norm_[i],v3->w_norm_[i]),bary);
+                content_.normal[i]=glm::dot(glm::vec3(v1->w_norm_[i],v2->w_norm_[i],v3->w_norm_[i]),correct_bary);
 
             // shading
             switch(setting_.type){
                 case ShaderType::Color:
                     for(int i=0;i<4;++i)
-                        content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),bary);
+                        content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),correct_bary);
                     break;
 
                 case ShaderType::Depth:
@@ -161,9 +180,9 @@ public:
 protected:
     ShaderContentRecord content_;
     ShaderSetting setting_;
-    glm::mat4 * transform_;
-    glm::mat4 * normal_mat_;
-    glm::mat4 * model_mat_;
+    glm::mat4 * transform_;     // mvpv
+    glm::mat4 * normal_mat_;    // m-1T
+    glm::mat4 * model_mat_;     // m
 
 };
 

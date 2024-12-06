@@ -3,11 +3,13 @@
 
 
 struct Vertex{
-    glm::vec3 pos_;      // 模型局部坐标系下的位置
-    glm::vec3 norm_;    // 需要根据(（model）^-1)T 矩阵进行变换
+    // model space properties
+    glm::vec3 pos_;      
+    glm::vec3 norm_;    
     glm::vec4 color_;
     glm::vec2 uv_;
 
+    bool discard=false; // set this to true when the vertex is out of clip space
     glm::vec3 w_pos_;    // world space position
     glm::vec3 s_pos_;    // screen space position  // x,y in screen-space and z in [0,1] where 0 is the near-flat 
     glm::vec3 w_norm_;   // world space norm       // n[0~2]:normals of vertices in world space, that is norm_world=Model_mat^-1^T*norm_model; n[3]is the face normal

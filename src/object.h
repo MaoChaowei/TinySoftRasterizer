@@ -151,6 +151,11 @@ public:
         return all_objects_;
     }
 
+    inline void getNums(int& vn,int& fn)const{
+        vn=total_vertex_num_;
+        fn=total_face_num_;
+    }
+
     
     void setObject();
 
@@ -161,6 +166,8 @@ private:
     tinyobj::ObjReader reader_;
 
     unsigned int total_shapes_;
+    int total_vertex_num_=0;
+    int total_face_num_=0;
 
     bool flip_normals_=false;
 

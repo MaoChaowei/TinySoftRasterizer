@@ -19,12 +19,13 @@ int main(void) {
     // init my render
     Render render;
     render.setViewport(1600,16.0/9.0,60.0);
-    // render.addScene(std::string("assets/model/Bunny.obj"));
-    render.addScene(std::string("assets/model/cube.obj"));
+    render.addScene(std::string("assets/model/Bunny.obj"));
+    // render.addScene(std::string("assets/model/cube.obj"));
     // render.addScene(std::string("assets/model/cube.obj"));
 
     auto& camera=render.getCamera();
     camera.setMovement(0.1,0.1);
+    camera.setFrastrum(1.0,1000.0);
 
     auto& colorbuffer=render.getColorBuffer();
     auto& scene=render.getScene();
@@ -56,17 +57,17 @@ int main(void) {
            
             static int angle=0;
             // angle=(++angle)%360;
-            glm::vec3 model_position1{100,100,-500};
+            glm::vec3 model_position1{0,-50,-200};
             // glm::vec3 model_position1{0,0,0};
             // M=T*R*S
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(100));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(20));
             glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position1);
             glm::mat4 rotate=glm::rotate(glm::mat4(1.0f), glm::radians((float)angle), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 model_matrix=translation*rotate*scale;
 
             objs[0]->setModel2World(model_matrix);
 
-            // glm::vec3 model_position2{-20,-20,-50};
+            // glm::vec3 model_position2{-20,-20,-80};
             // // M=T*R*S
             // glm::mat4 translation2 = glm::translate(glm::mat4(1.0f),model_position2);
             // glm::mat4 model_matrix2=translation2*rotate*scale;
