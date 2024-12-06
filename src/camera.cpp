@@ -20,19 +20,31 @@ void Camera::setMovement(float spd,float sensi){
 	sensitivity_=sensi;
 }
 
-void Camera::processKeyboard(CameraMovement type){
+void Camera::processKeyboard(CameraMovement type,float delta){
+	float velocity=speed_*delta;
 	switch(type){
 		case CameraMovement::FORWARD:
-			position_+=glm::vec3(speed_)*front_;
+			position_+=glm::vec3(velocity)*front_;
+			update_flag_=true;
 			break;
 		case CameraMovement::BACKWARD:
-			position_+=glm::vec3(-speed_)*front_;
+			position_-=glm::vec3(velocity)*front_;
+			update_flag_=true;
 			break;
 		case CameraMovement::LEFT:
-			position_+=glm::vec3(-speed_)*right_;
+			position_-=glm::vec3(velocity)*right_;
+			update_flag_=true;
 			break;
 		case CameraMovement::RIGHT:
-			position_+=glm::vec3(speed_)*right_;
+			position_+=glm::vec3(velocity)*right_;
+			update_flag_=true;
+			break;
+		case CameraMovement::REFRESH:
+			position_=glm::vec3(0.f);
+			front_=glm::vec3(0,0,-1);
+			right_=glm::vec3(1,0,0);
+			up_=glm::vec3(0,1,0);
+			update_flag_=true;
 			break;
 		default:
 			break;
@@ -64,6 +76,8 @@ void Camera::updateCameraVectors() {
 
     right_ = glm::normalize(glm::cross(front_, glm::vec3(0.0f, 1.0f, 0.0f)));
     up_ = glm::normalize(glm::cross(right_, front_));
+
+	update_flag_=true;
 }
 
 /**

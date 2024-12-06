@@ -32,6 +32,7 @@ public:
     inline void swapBuffer(){glfwSwapBuffers(window_);};
 
 
+
 private:
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouseCallback(GLFWwindow* window, double xpos, double ypos);

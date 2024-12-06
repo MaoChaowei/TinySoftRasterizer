@@ -11,7 +11,6 @@
 
 
 struct RenderSetting{
-    // ShaderType shader_type=ShaderType::Depth;
     ShaderSetting shader_setting;
 };
 
@@ -19,77 +18,50 @@ class Render{
 public:
     Render():camera_(),colorbuffer_(camera_.getImageWidth(),camera_.getImageHeight()),
             zbuffer_(camera_.getImageWidth(),camera_.getImageHeight()){
-
         box_.min={0,0};
         box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
     }
+
+    // MEMBER SETTING
 
     inline void setCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000){
         camera_.updateCamera(pos,lookat,right);
-        colorbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
-        zbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
-        updateMatrix();
-
-        box_.min={0,0};
-        box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+        afterCameraUpdate();
     }
-
-    inline void setScene(std::string filename){
-        scene_.addScene(filename);
+    inline void setViewport(uint32_t width,float ratio,float fov){
+        camera_.setViewport(width,ratio,fov);
+        afterCameraUpdate();
     }
-    inline void addScene(std::string filename){
-        scene_.addScene(filename);
-    }
+    void addScene(std::string filename);
 
+    inline void setDeltaTime(float t){delta_time_=t;}
 
-    void pipeModel2Screen();
-
-    void pipeFragmentShader();
-
-    // once change camera property, we need this function to update VPV-matrix
     void updateMatrix();
-    inline void updateViewMatrix(){
-        mat_view_=camera_.getViewMatrix();
-    }
+    inline void updateViewMatrix(){ mat_view_=camera_.getViewMatrix(); }
 
-    void pipelineInit(const RenderSetting & setting=RenderSetting());
-
-
-    // rastrization each frame, call setTransformation before this
-    void pipelineBegin();
-
-    bool backCulling(const glm::vec3& face_norm,const glm::vec3& dir)const;
-
-    // call this at the end of each frame's rendering!
-    void inline cleanFrame(){
+     // call this at the end of each frame's rendering!
+    inline void cleanFrame(){
         colorbuffer_.clear();
         zbuffer_.clear();
     }
 
-    // rasterize
-    void drawLine();
-    void drawTriangle();
+    // PIPELINE
 
-    inline const Camera& getCamera()const{ return camera_;}
+    void pipelineInit(const RenderSetting & setting=RenderSetting());
+    void pipelineBegin();
+
+    bool backCulling(const glm::vec3& face_norm,const glm::vec3& dir)const;
+
+    inline  Camera& getCamera(){ return camera_;}
     inline const ColorBuffer& getColorBuffer()const{ return colorbuffer_;}
     inline const Scene& getScene()const{ return scene_;}
 
-    // interaction
-    inline void handleKeyboardInput(int key, int action) {
-        if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-            if (key == GLFW_KEY_W) camera_.processKeyboard(CameraMovement::FORWARD);
-            if (key == GLFW_KEY_S) camera_.processKeyboard(CameraMovement::BACKWARD);
-            if (key == GLFW_KEY_A) camera_.processKeyboard(CameraMovement::LEFT);
-            if (key == GLFW_KEY_D) camera_.processKeyboard(CameraMovement::RIGHT);
-            std::cout<<"got: key="<<key<<" , action= "<<action<<std::endl;
-        }
-    }
+    // UI
+    void handleKeyboardInput(int key, int action);
+    void handleMouseInput(double xoffset, double yoffset);
+    void moveCamera();
 
-    inline void handleMouseInput(double xoffset, double yoffset) {
-        camera_.processMouseMovement(static_cast<float>(xoffset), static_cast<float>(yoffset));
-    }
-
-    // debug
+    // DEBUG
     void printMatrix(const glm::mat4& mat,const std::string name)const{
         std::cout<<name<<std::endl;
         for(int i=0;i<4;++i){
@@ -104,6 +76,13 @@ public:
         printMatrix(mat_viewport_,"mat_viewport_");
     }
 
+private:
+    // rasterize
+    void drawLine();
+    void drawTriangle();
+
+    // update members accrordingly after camera's update
+    void afterCameraUpdate();
 
 private:
     bool is_init_=false;
@@ -121,5 +100,9 @@ private:
     // screen aabb box
     AABB2d box_;
 
+public:
+    // for ui
+    float delta_time_;          // time spent to render last frame; (ms)
+    bool keys_[1024]={0}; 
 
 };

@@ -13,13 +13,17 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
     if (instance && instance->render_) {
         instance->render_->handleKeyboardInput(key, action);
-        instance->render_->updateViewMatrix();
     }
+
 }
 
 void Window::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
     if (instance && instance->render_) {
+        // 计算鼠标距上一帧的偏移量。
+        // 把偏移量添加到摄像机的俯仰角和偏航角中。
+        // 对偏航角和俯仰角进行最大和最小值的限制。
+        // 计算方向向量。
         if (instance->firstMouse_) {
             instance->lastX_ = xpos;
             instance->lastY_ = ypos;
@@ -32,7 +36,6 @@ void Window::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
         instance->lastY_ = ypos;
 
         instance->render_->handleMouseInput(xoffset, yoffset);
-        instance->render_->updateViewMatrix();
     }
 }
 
@@ -59,6 +62,9 @@ int Window::init(const char* name,int width,int height)
 		return -1;
 	}
 
+    // 设置用户指针，将 `this` 绑定到 `GLFWwindow`
+    glfwSetWindowUserPointer(window_, this);
+
 	glViewport(0, 0, width, height);
     width_=width;
     height_=height;
@@ -66,7 +72,7 @@ int Window::init(const char* name,int width,int height)
     glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
     glfwSetKeyCallback(window_, keyCallback);  
     glfwSetCursorPosCallback(window_, mouseCallback);
-    glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
+    // glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
 
     this->initData();
     this->initShaderProgram();    // init shader program

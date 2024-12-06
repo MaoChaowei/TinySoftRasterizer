@@ -23,6 +23,9 @@ inline ShaderSwitch operator|(const ShaderSwitch& s1,const ShaderSwitch& s2){
 inline ShaderSwitch operator&(const ShaderSwitch& s1,const ShaderSwitch& s2){
     return (ShaderSwitch)((int)(s1)&(int)(s2));
 }
+inline ShaderSwitch operator^(const ShaderSwitch& s1,const ShaderSwitch& s2){
+    return (ShaderSwitch)((int)(s1)^(int)(s2));
+}
 
 struct ShaderSetting{
     ShaderType type;

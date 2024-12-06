@@ -7,6 +7,7 @@ enum class CameraMovement{
 	BACKWARD,
 	LEFT,
 	RIGHT,
+	REFRESH,
 };
 
 //@todo: interaction operations, such as move and rotate
@@ -45,6 +46,15 @@ public:
 		up_=glm::cross(right_,front_);
 
 	}
+	void setViewport(uint32_t width,float ratio,float fov){
+		image_width_=width;
+		image_height_=(int)(image_width_/ratio);
+		aspect_ratio_=image_width_/(float)image_height_;
+		fov_=fov;
+
+		half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
+		half_near_width_=aspect_ratio_*half_near_height_;
+	}
 	
     void updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000);
 
@@ -60,10 +70,17 @@ public:
     inline const glm::vec3 getUp()const{return this->up_;}
     inline const int getImageWidth()const{return this->image_width_;}
     inline const int getImageHeight()const{return this->image_height_;}
+	inline const bool needUpdateView(){
+		if(update_flag_){
+			update_flag_=false;
+			return true;
+		}
+		return false;
+	}
 
 	// ui
 	void setMovement(float spd,float sensi);
-	void processKeyboard(CameraMovement type);
+	void processKeyboard(CameraMovement type,float delta);
 	void processMouseMovement(float xoffset, float yoffset);
 	void updateCameraVectors();
 
@@ -75,14 +92,16 @@ private:
 	glm::vec3 right_;
 	glm::vec3 up_;
 
-	float speed_=1.0f;
-	float sensitivity_=1.0f;
+	bool update_flag_=false;		// turn true when camera moves and turn false when checked by `needUpdateMatrices`
+
+	float speed_=0.8f;
+	float sensitivity_=0.1f;
 	float yaw_;    // horizental
     float pitch_;  // vertical
 
 	// define the image and near flat
-	// vertical fov
-	float fov_=60;
+	
+	float fov_=60;	// vertical fov
 	float aspect_ratio_=16.0/9.0;
 	int image_width_,image_height_;
 	float half_near_height_,half_near_width_;
