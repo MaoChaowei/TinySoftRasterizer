@@ -61,6 +61,8 @@ public:
     glm::mat4 getViewMatrix()const;
 	glm::mat4 getPerspectiveMatrix()const;
 	glm::mat4 getViewportMatrix()const;
+	float getNear()const{return near_flat_z_;}
+	float getFar()const{return far_flat_z_;}
 
     void setFrastrum(float near,float far);
 

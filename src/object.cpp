@@ -3,6 +3,8 @@
 #include<glm/gtx/hash.hpp>
 #include"algorithm"
 #include"utils.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 namespace object_tools{
 

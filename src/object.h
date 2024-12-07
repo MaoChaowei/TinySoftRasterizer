@@ -4,6 +4,7 @@
 #include"vertex.h"
 #include "tiny_obj_loader.h"
 
+
 // specify different types of objects  
 enum class PrimitiveType{
     // NAME= the number of vertices
@@ -43,6 +44,9 @@ protected:
     std::vector<uint32_t> indices_;
     // the normal for all faces, only availabel for MESH
     std::vector<glm::vec3> face_normals_;
+
+    std::shared_ptr<Texture> texture_;
+
 
     glm::mat4 mat_model_=glm::mat4(1.0f);
 
@@ -124,14 +128,14 @@ class ObjLoader{
 public:
     ObjLoader()=delete;
 
-    ObjLoader(std::string str){
+    ObjLoader(std::string str,bool flipn=false){
+        // 1.set properties
         filename_=str;
+        flip_normals_=flipn;
+        
+        // 2. do things
         readObjFile(str);
         setObject();
-    }
-
-    void setFlags(bool flipn){
-        flip_normals_=flipn;
     }
 
     void setFileAndRead(std::string str){

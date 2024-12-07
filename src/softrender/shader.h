@@ -1,6 +1,8 @@
 #pragma once
-#include"common_include.h"
-#include"vertex.h"
+#include"common/common_include.h"
+#include"../vertex.h"
+#include"../object.h"
+#include"../texture.h"
 
 enum class ShaderType{
     Default       ,
@@ -56,15 +58,18 @@ public:
     inline void bindModelMat(glm::mat4* m){ model_mat_=m;}
     inline void setPrimitiveType( PrimitiveType t){ content_.primitive_type=t; }
     inline void setShaderSetting(const ShaderSetting& set){ setting_=set; }
+    inline void setFrustum(int near,int far){
+        near_plane_=near;
+        far_plane_=far;
+    }
     
-
     inline ShaderType getType()const{ return setting_.type;}
     inline glm::vec4 getColor()const { return content_.color; }
     inline float getDepth() const { return content_.depth; }
-    inline glm::vec3 getPoint2d(uint32_t idx) const { return content_.v[idx]->s_pos_; }
+    inline glm::vec3 getScreenPos(uint32_t idx) const { return content_.v[idx]->s_pos_; }
  
-    bool checkFlag(ShaderSwitch flag){
-        return (bool)(flag|setting_.flags);
+    inline bool checkFlag(ShaderSwitch flag){
+        return (bool)(flag&setting_.flags);
     }
 
     inline void assemblePrimitive(const Vertex* v1,const Vertex* v2,const Vertex* v3){
@@ -75,24 +80,12 @@ public:
 
     /**
      * @brief vertex shader: convert vertex from model-space to screen-space 
-     *        => x and y in [width,height], z in [0,1];
+     *        => x and y in [width,height], z in [-1,1];
      *        convert normals into world space
      * @param v : the vertex information holder
      */
-    inline void vertexShader(Vertex& v ){
-        glm::vec4 npos=(*transform_)*glm::vec4(v.pos_,1.0f);
-        if(npos.w>0){
-            v.s_pos_=npos/npos.w;
-
-            v.w_pos_=(*model_mat_)*glm::vec4(v.pos_,1.0f);
-            v.w_norm_=(*normal_mat_)*glm::vec4(v.norm_,0);
-            v.discard=false;
-        }
-        else{   // need to be clipped
-            v.discard=true;
-        }
-    }
-
+    void vertexShader(Vertex& v );
+    
     /**
      * @brief shading the fragment with properties set in `ShaderType`.
      * 
@@ -100,81 +93,7 @@ public:
      * @param cur_depth : refer to the current z-buffer(x,y) so that I can finish Early-Z Test here.
      * @return if the fragment can be accepted for now, than return `true`, ortherwise return `false`.
      */
-    bool fragmentShader(uint32_t x,uint32_t y,float cur_depth){
-        auto& otype=content_.primitive_type;
-        auto& v1=content_.v[0];
-        auto& v2=content_.v[1];
-        auto& v3=content_.v[2];
-
-        if(otype==PrimitiveType::MESH){
-            // TODO: clipping
-            if(v1->discard||v2->discard||v3->discard)
-                return false;
-
-            // getBaryCenter
-            glm::vec3 bary=utils::getBaryCenter(v1->s_pos_,v2->s_pos_,v3->s_pos_,glm::vec2(x,y));
-            glm::vec3 correct_bary;
-            if(bary.x<0||bary.y<0||bary.z<0)
-                return false;
-            
-            // perspective correct interpolation
-            for(int i=0;i<3;++i)
-                correct_bary[i]=bary[i]/content_.v[i]->w_pos_.z;
-
-            float z_n=1.0/(correct_bary[0]+correct_bary[1]+correct_bary[2]);
-
-            for(int i=0;i<3;++i)
-                correct_bary[i]*=z_n;
-
-            // depth
-            content_.depth=glm::dot(glm::vec3(v1->s_pos_.z,v2->s_pos_.z,v3->s_pos_.z),correct_bary);
-            if(checkFlag(ShaderSwitch::EarlyZtest)&&cur_depth<content_.depth)
-                return false;
-
-            // normal 
-            for(int i=0;i<3;++i)
-                content_.normal[i]=glm::dot(glm::vec3(v1->w_norm_[i],v2->w_norm_[i],v3->w_norm_[i]),correct_bary);
-
-            // shading
-            switch(setting_.type){
-                case ShaderType::Color:
-                    for(int i=0;i<4;++i)
-                        content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),correct_bary);
-                    break;
-
-                case ShaderType::Depth:
-                    content_.color=glm::vec4(content_.depth*255.0f);
-                    break;
-
-                case ShaderType::Normal:
-                // 法向量在z轴方向上的可视化
-                    content_.color=glm::vec4(content_.normal[2]*255.0f);
-                    break;
-
-                case ShaderType::Frame:
-                    if(bary.x==0||bary.y==0||bary.z==0)
-                        content_.color=glm::vec4(255.0f);
-                    break;
-
-                case ShaderType::Texture:
-                    break;   
-
-                default:
-                    break;                                           
-            }
-            
-            
-            return true;
-        }
-        else if(otype==PrimitiveType::LINE){
-            std::cout<<"fragmentShader: I haven't supported LINE rendering yet~\n";
-        }
-        else{
-            std::cout<<"fragmentShader:Actually, I haven't supported anything except MESH rendering...\n";
-        }
-        
-        return true;
-    }
+    bool fragmentShader(uint32_t x,uint32_t y,float cur_depth);
 
 
 protected:
@@ -183,6 +102,10 @@ protected:
     glm::mat4 * transform_;     // mvpv
     glm::mat4 * normal_mat_;    // m-1T
     glm::mat4 * model_mat_;     // m
+    std::shared_ptr<Texture> texture_;
+
+    float far_plane_;
+    float near_plane_;
 
 };
 

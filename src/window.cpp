@@ -72,7 +72,7 @@ int Window::init(const char* name,int width,int height)
     glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
     glfwSetKeyCallback(window_, keyCallback);  
     glfwSetCursorPosCallback(window_, mouseCallback);
-    // glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
+    glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
 
     this->initData();
     this->initShaderProgram();    // init shader program

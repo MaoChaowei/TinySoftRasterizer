@@ -32,7 +32,7 @@ public:
         camera_.setViewport(width,ratio,fov);
         afterCameraUpdate();
     }
-    void addScene(std::string filename);
+    void addScene(std::string filename,bool flipn=false);
 
     inline void setDeltaTime(float t){delta_time_=t;}
 
@@ -78,7 +78,7 @@ public:
 
 private:
     // rasterize
-    void drawLine();
+    void drawLine(glm::vec2 t1,glm::vec2 t2);
     void drawTriangle();
 
     // update members accrordingly after camera's update

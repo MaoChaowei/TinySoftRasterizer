@@ -27,6 +27,7 @@ public:
     }
     inline unsigned char* getAddr()const{return addr_;}
 
+    // make sure that x and y must in the window
     inline void setPixel(int x,int y,glm::vec4 color)const{
         int idx=y*width_+x;
         if(idx>=pixel_num_||idx<0) 

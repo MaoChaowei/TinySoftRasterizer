@@ -123,9 +123,7 @@ glm::mat4 Camera::getViewportMatrix()const{
 	v[3][0]=image_width_/2.0;
 	v[1][1]=image_height_/2.0;
 	v[3][1]=image_height_/2.0;
-	
-	v[2][2] = 0.5f;  // z from [-1, 1] to [0, 1]
-    v[3][2] = 0.5f;
+
 
 	return v;
 }

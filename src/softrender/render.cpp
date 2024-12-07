@@ -7,8 +7,8 @@ void Render::updateMatrix(){
     mat_viewport_=camera_.getViewportMatrix();
 }
 
-void Render::addScene(std::string filename){
-    scene_.addScene(filename); 
+void Render::addScene(std::string filename,bool flipn){
+    scene_.addScene(filename,flipn); 
 }
 
 void Render::pipelineInit(const RenderSetting & setting){
@@ -19,14 +19,13 @@ void Render::pipelineInit(const RenderSetting & setting){
     // init shader
     sdptr_=std::make_shared<Shader>();
     sdptr_->setShaderSetting(setting.shader_setting);
+    sdptr_->setFrustum(camera_.getNear(),camera_.getFar());
 
     is_init_=true;
 }
 
-// TODO: make sure points are legal
-void Render::drawLine(){
-    glm::vec2 t1=sdptr_->getPoint2d(0);
-    glm::vec2 t2=sdptr_->getPoint2d(1);
+// the line must be clipped before sent to draw!
+void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
     glm::vec4 color(255.0f);
     // make sure: x-axis is less steep and t1 is the left point
     bool swap_flag=0;
@@ -50,7 +49,6 @@ void Render::drawLine(){
     int error2=0;
     int y=t1.y;
     for(int x=t1.x;x<=t2.x;++x){
-        // TODO: interpolate the color if need
         if(swap_flag){
             colorbuffer_.setPixel(y,x,color);
         }else{
@@ -68,17 +66,28 @@ void Render::drawLine(){
 // go through all the pixels inside the AABB, that means I didn't use coherence here
 void Render::drawTriangle(){
     AABB2d aabb;
-    aabb.containTriangel(sdptr_->getPoint2d(0),sdptr_->getPoint2d(1),sdptr_->getPoint2d(2));
+    glm::vec3 t[3];
+    for(int i=0;i<3;++i)
+        t[i]=sdptr_->getScreenPos(i);
+    
+    aabb.containTriangel(t[0],t[1],t[2]);
     aabb.clipAABB(box_);
     if(!aabb.valid)
         return;
     
-    for(int y=aabb.min.y;y<=aabb.max.y;++y){
-        for(int x=aabb.min.x;x<=aabb.max.x;++x){
-            bool passZtest=sdptr_->fragmentShader(x,y,zbuffer_.getDepth(x,y));
-            if(passZtest){
-                colorbuffer_.setPixel(x,y,sdptr_->getColor());
-                zbuffer_.setDepth(x,y,sdptr_->getDepth());
+    if(setting_.shader_setting.type==ShaderType::Frame){
+        for(int i=0;i<3;++i){
+            drawLine(t[i],t[(i+1)%3]);
+        }
+    }
+    else{
+        for(int y=aabb.min.y;y<=aabb.max.y;++y){
+            for(int x=aabb.min.x;x<=aabb.max.x;++x){
+                bool passZtest=sdptr_->fragmentShader(x,y,zbuffer_.getDepth(x,y));
+                if(passZtest){
+                    colorbuffer_.setPixel(x,y,sdptr_->getColor());
+                    zbuffer_.setDepth(x,y,sdptr_->getDepth());
+                }
             }
         }
     }
@@ -102,7 +111,7 @@ void Render::pipelineBegin(){
     auto& objects=scene_.getObjects();
     for(auto& obj:objects){
 
-        glm::mat4 mat_model=obj->getModel();        // debugMatrix();
+        glm::mat4 mat_model=obj->getModel();       
         auto otype=obj->getPrimitiveType();
         auto& objvertices=obj->getVertices();
         auto& objindices=obj->getIndices();
@@ -141,12 +150,8 @@ void Render::pipelineBegin(){
                 glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt++],0.f);
                 glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
                 if(backCulling(norm,dir)==true){
-                    // std::cout<<"culling:";
-                    // utils::printvec3(norm,"norm");
                     continue;
                 }
-                // std::cout<<"showing:";
-                // utils::printvec3(norm,"norm");
             }
 
             // render
