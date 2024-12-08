@@ -3,7 +3,7 @@
 #include "stb_image.h"
 
 
-inline void Texture::getColorBilinear(float x,float y,glm::vec4& color){
+void Texture::getColorBilinear(float x,float y,glm::vec4& color){
     x=std::clamp(x,0.0f,1.0f);
     y=std::clamp(y,0.0f,1.0f);
     float img_x=x*(width_-1);
@@ -56,7 +56,10 @@ void Texture::loadFromFile(std::string filename){
     stbi_set_flip_vertically_on_load(1);
     data_=stbi_load(filename.c_str(),&width_,&height_,&channel,channel_num_);
     if(!data_){
-        std::cout<<"Failed to load texture: "<<filename<<".\n";
+        std::cout<<"Failed to load texture: "<<filename<<",please check the file path of this texture.\n";
+    }
+    else{
+        std::cout<<"Successfully load Texture: "<<filename<<".\n";
     }
     pnum_=width_*height_;
 }

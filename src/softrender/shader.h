@@ -2,16 +2,23 @@
 #include"common/common_include.h"
 #include"../vertex.h"
 #include"../object.h"
-#include"../texture.h"
+#include"../material.h"
 
 enum class ShaderType{
-    Default       ,
-    Texture       ,
-    Color         ,          
-    Depth         ,
-    Normal        ,
-    Frame         ,
+    Texture       =1<<0,
+    Color         =1<<1,         
+    Depth         =1<<2,
+    Normal        =1<<3,
+    Frame         =1<<4,
+
+    ORDER=Texture|Color|Depth|Normal|Frame,
 };
+inline ShaderType operator|(const ShaderType& s1,const ShaderType& s2){
+    return (ShaderType)((int)(s1)|(int)(s2));
+}
+inline ShaderType operator&(const ShaderType& s1,const ShaderType& s2){
+    return (ShaderType)((int)(s1)&(int)(s2));
+}
 
 enum class ShaderSwitch{
     EarlyZtest      =1<<0,
@@ -56,6 +63,7 @@ public:
     inline void bindTransform(glm::mat4* m){ transform_=m;}
     inline void bindNormalMat(glm::mat4* m){ normal_mat_=m;}
     inline void bindModelMat(glm::mat4* m){ model_mat_=m;}
+    inline void bindMaterial(std::shared_ptr<Material> mp){ material_=mp; }
     inline void setPrimitiveType( PrimitiveType t){ content_.primitive_type=t; }
     inline void setShaderSetting(const ShaderSetting& set){ setting_=set; }
     inline void setFrustum(int near,int far){
@@ -70,6 +78,9 @@ public:
  
     inline bool checkFlag(ShaderSwitch flag){
         return (bool)(flag&setting_.flags);
+    }
+    inline bool checkShader(ShaderType flag){
+        return (bool)(flag&setting_.type);
     }
 
     inline void assemblePrimitive(const Vertex* v1,const Vertex* v2,const Vertex* v3){
@@ -102,7 +113,7 @@ protected:
     glm::mat4 * transform_;     // mvpv
     glm::mat4 * normal_mat_;    // m-1T
     glm::mat4 * model_mat_;     // m
-    std::shared_ptr<Texture> texture_;
+    std::shared_ptr<Material> material_;
 
     float far_plane_;
     float near_plane_;

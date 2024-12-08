@@ -7,8 +7,8 @@ void Render::updateMatrix(){
     mat_viewport_=camera_.getViewportMatrix();
 }
 
-void Render::addScene(std::string filename,bool flipn){
-    scene_.addScene(filename,flipn); 
+void Render::addScene(std::string filename,bool flipn,bool backculling){
+    scene_.addScene(filename,flipn,backculling); 
 }
 
 void Render::pipelineInit(const RenderSetting & setting){
@@ -75,7 +75,7 @@ void Render::drawTriangle(){
     if(!aabb.valid)
         return;
     
-    if(setting_.shader_setting.type==ShaderType::Frame){
+    if(ShaderType::Frame==sdptr_->getType()){
         for(int i=0;i<3;++i){
             drawLine(t[i],t[(i+1)%3]);
         }
@@ -116,6 +116,8 @@ void Render::pipelineBegin(){
         auto& objvertices=obj->getVertices();
         auto& objindices=obj->getIndices();
         auto& objfacenorms=obj->getFaceNorms();
+        auto& objmtls=obj->getMtls();
+        auto& objmtlidx=obj->getMtlIdx();
 
         // calculate all the matrix operations and send to shader
         glm::mat4 transform=mat_viewport_*mat_perspective_*mat_view_*mat_model;
@@ -123,6 +125,7 @@ void Render::pipelineBegin(){
         sdptr_->bindTransform(&transform);
         sdptr_->bindNormalMat(&normal_mat);
         sdptr_->bindModelMat(&mat_model);
+        
 
         glm::vec4 npos;
         int ver_num=int(otype);
@@ -137,23 +140,30 @@ void Render::pipelineBegin(){
         /*----- Rasterize phrase --------*/
         // for each primitive's each fragment, go through FS
         int face_cnt=0;
-        for(auto it=objindices.begin();it!=objindices.end();){
+        for(auto it=objindices.begin();it!=objindices.end();++face_cnt){
             // assembly primitive
             const Vertex* v1=&objvertices[*it++];
             const Vertex* v2=&objvertices[*it++];
             const Vertex* v3=&objvertices[*it++];
-
             sdptr_->assemblePrimitive(v1,v2,v3);
 
             // back culling
-            if(sdptr_->checkFlag(ShaderSwitch::BackCulling)){
-                glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt++],0.f);
+            if(sdptr_->checkFlag(ShaderSwitch::BackCulling)&&obj->isBackCulling()){
+                glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
                 glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
                 if(backCulling(norm,dir)==true){
                     continue;
                 }
             }
 
+            // bind material of the primitive if it has one
+            int midx=objmtlidx[face_cnt];
+            if(midx>=0 && midx<objmtls.size()){
+                sdptr_->bindMaterial(objmtls[midx]);
+            }else{
+                sdptr_->bindMaterial(nullptr);
+            }
+            
             // render
             switch(otype){
                 case PrimitiveType::LINE:

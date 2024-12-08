@@ -4,6 +4,7 @@
 
 class Texture{
 public:
+    // Texture():channel_num_(4){};
     Texture(std::string filename):channel_num_(4){
         loadFromFile(filename);
     }
@@ -19,7 +20,7 @@ public:
     void loadFromFile(std::string filename);
 
 
-    inline void getColorBilinear(float x,float y,glm::vec4& color);
+    void getColorBilinear(float x,float y,glm::vec4& color);
 
 private:
     int width_;

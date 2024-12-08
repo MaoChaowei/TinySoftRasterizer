@@ -32,7 +32,7 @@ public:
         camera_.setViewport(width,ratio,fov);
         afterCameraUpdate();
     }
-    void addScene(std::string filename,bool flipn=false);
+    void addScene(std::string filename,bool flipn=false,bool backculling=true);
 
     inline void setDeltaTime(float t){delta_time_=t;}
 

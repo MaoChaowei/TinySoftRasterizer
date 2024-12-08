@@ -16,9 +16,9 @@ int main(void) {
     // init my render
     Render render;
     render.setViewport(1600,16.0/9.0,60.0);
-    render.addScene(std::string("assets/model/Brickwall/brickwall.obj"),false);
-    // render.addScene(std::string("assets/model/Bunny.obj"),true);
-    render.addScene(std::string("assets/model/cube.obj"),false);
+    render.addScene(std::string("assets/model/Brickwall/brickwall.obj"),false,false);
+    // render.addScene(std::string("assets/model/Bunny.obj"),false);
+    render.addScene(std::string("assets/model/cube.obj"),true);
     // render.addScene(std::string("assets/model/cube.obj"));
 
     auto& camera=render.getCamera();
@@ -33,7 +33,7 @@ int main(void) {
     int height=camera.getImageHeight();
     
     RenderSetting setting;
-    setting.shader_setting.type=ShaderType::Depth;
+    setting.shader_setting.type=ShaderType::ORDER;
     setting.shader_setting.flags=ShaderSwitch::ALL_ON;
     // setting.shader_setting.flags=ShaderSwitch::ALL_ON^ShaderSwitch::BackCulling;
 

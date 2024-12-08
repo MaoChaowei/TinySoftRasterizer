@@ -46,8 +46,9 @@ Vertex extractVertex(const tinyobj::attrib_t& attrib,const tinyobj::index_t idx)
 
 
 //---------------------Mesh--------------------------//
-
 void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals){
+    // TODO: read all the mtls and idx of it
+    
     name_=info.name;
     face_num_=info.mesh.num_face_vertices.size();
 
@@ -70,6 +71,7 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
         if(idx.normal_index<0) has_normal_=false;
         if(idx.texcoord_index<0) has_uv_=false;
     }
+
     int sign=flip_normals?-1:1;
     // calculate face and vertex normals
     for(int i=0;i<face_num_;++i){
@@ -99,8 +101,6 @@ void Mesh::initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attr
     }
     has_normal_=true;
 }
-
-
 
 void Mesh::printInfo() const {
     std::cout << "Mesh Name: " << name_ << std::endl;
@@ -212,26 +212,118 @@ void ObjLoader::readObjFile(std::string inputfile){
  * @brief retrive everything in `reader_` to my structure for further usage
  * 
  */
-void ObjLoader::setObject(){
-    auto& attrib = reader_.GetAttrib();
-    auto& shapes = reader_.GetShapes();
+// void ObjLoader::setObject(){
+//     auto& attrib = reader_.GetAttrib();
+//     auto& shapes = reader_.GetShapes();
+//     auto& mtls = reader_.GetMaterials();
 
-    total_shapes_=shapes.size();
+//     total_shapes_=shapes.size();
     
-    for(int i=0;i<total_shapes_;++i){
-        if(shapes[i].mesh.indices.size()){
-            auto mesh = std::make_unique<Mesh>();
-            mesh->initObject(shapes[i],attrib,flip_normals_);
-            all_objects_.push_back(std::move(mesh));
-            total_face_num_+=shapes[i].mesh.num_face_vertices.size();
-            total_vertex_num_+=shapes[i].mesh.indices.size();
-        }
-        if(shapes[i].lines.indices.size()){
-            auto line = std::make_unique<Line>();
-            line->initObject(shapes[i],attrib);
-            all_objects_.push_back(std::move(line));
-            total_vertex_num_+=shapes[i].lines.indices.size();
-        }
-        // todo : dot
-    }
+//     for(int i=0;i<total_shapes_;++i){
+//         if(shapes[i].mesh.indices.size()){
+//             auto mesh = std::make_unique<Mesh>();
+//             mesh->initObject(shapes[i],attrib,flip_normals_);
+//             all_objects_.push_back(std::move(mesh));
+//             total_face_num_+=shapes[i].mesh.num_face_vertices.size();
+//             total_vertex_num_+=shapes[i].mesh.indices.size();
+//         }
+//         if(shapes[i].lines.indices.size()){
+//             auto line = std::make_unique<Line>();
+//             line->initObject(shapes[i],attrib);
+//             all_objects_.push_back(std::move(line));
+//             total_vertex_num_+=shapes[i].lines.indices.size();
+//         }
+//         // todo : dot
+//     }
+// }
+
+void ObjLoader::setObject(std::string filepath){
+    
+    auto mesh = std::make_unique<Mesh>();
+    auto line = std::make_unique<Line>();
+    mesh->initObject(reader_,filepath,flip_normals_,back_culling_);
+    // line->initObject(reader_,filepath,flip_normals_);
+    total_face_num_=mesh->getFaceNum();
+    total_vertex_num_=mesh->getVerticesNum()+line->getVerticesNum();
+
+    if(mesh->getVerticesNum()>0)
+        all_objects_.push_back(std::move(mesh));
+    if(line->getVerticesNum()>0)
+        all_objects_.push_back(std::move(line));
+    
 }
+
+void Mesh::initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals,bool backculling){
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+    auto& mtls = reader.GetMaterials();
+    name_=shapes[0].name;
+    face_num_=0;
+    do_back_culling_=backculling;
+   
+    std::unordered_map<Vertex,uint32_t> ver2idx;
+    has_normal_=has_uv_=true;
+
+    // initialize all the vetices 
+    for(auto& info:shapes){
+        face_num_+=info.mesh.num_face_vertices.size();
+        for(auto& idx:info.mesh.indices){
+            Vertex v=object_tools::extractVertex(attrib,idx);
+            if(ver2idx.find(v)!=ver2idx.end()){
+                // already preserved
+                indices_.push_back(ver2idx[v]);
+            }
+            else{
+                uint32_t t=vertices_.size();
+                vertices_.push_back(v);
+                indices_.push_back(t);
+                ver2idx[v]=t;
+            }
+            if(has_normal_&&idx.normal_index<0) has_normal_=false;
+            if(has_uv_&&idx.texcoord_index<0) has_uv_=false;
+        }
+        for(auto& idx:info.mesh.material_ids){
+            mtlidx_.push_back(idx);
+        }
+    }
+    // initialize all the materials
+    size_t pos= filepath.find_last_of("/\\");
+    std::string prefix=filepath.substr(0,pos)+"/";
+    for(auto& m:mtls){
+        std::shared_ptr<Material> mptr=std::make_shared<Material>();
+        mptr->setName(m.name);
+        mptr->setADS(glm::vec3(m.ambient[0],m.ambient[1],m.ambient[2]),
+                     glm::vec3(m.diffuse[0],m.diffuse[1],m.diffuse[2]),
+                     glm::vec3(m.specular[0],m.specular[1],m.specular[2]));
+
+        if(m.ambient_texname.size())    mptr->setTexture(MltMember::Ambient,prefix+m.ambient_texname);
+        if(m.diffuse_texname.size())    mptr->setTexture(MltMember::Diffuse,prefix+m.diffuse_texname);
+        if(m.specular_texname.size())    mptr->setTexture(MltMember::Specular,prefix+m.specular_texname);
+
+        mtls_.push_back(mptr);
+    }
+
+    int sign=flip_normals?-1:1;
+    // calculate face and vertex normals
+    for(int i=0;i<face_num_;++i){
+        glm::vec3 a=vertices_[indices_[i*3+0]].pos_;
+        glm::vec3 b=vertices_[indices_[i*3+1]].pos_;
+        glm::vec3 c=vertices_[indices_[i*3+2]].pos_;
+        glm::vec3 cb=b-c;
+        glm::vec3 ba=a-b;
+        glm::vec3 nn=glm::vec3(sign)*glm::cross(ba,cb);
+
+        face_normals_.push_back(nn);
+        if(!has_normal_){
+            for(int t=0;t<3;++t){
+                vertices_[indices_[i*3+t]].norm_+=face_normals_[i];
+            }
+        }
+    }
+    for(auto& v:vertices_){
+        v.norm_=glm::normalize(v.norm_);
+    }
+    has_normal_=true;
+}
+
+

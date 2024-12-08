@@ -60,42 +60,50 @@ bool Shader::fragmentShader(uint32_t x,uint32_t y,float cur_depth){
         if(checkFlag(ShaderSwitch::EarlyZtest)&&cur_depth<content_.depth)
             return false;
 
-        // normal 
+        // normal , has a bug here..
         for(int i=0;i<3;++i)
             content_.normal[i]=glm::dot(glm::vec3(v1->w_norm_[i],v2->w_norm_[i],v3->w_norm_[i]),correct_bary);
 
         // shading
-        switch(setting_.type){
-            case ShaderType::Color:
-                for(int i=0;i<4;++i)
-                    content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),correct_bary);
-                break;
-
-            case ShaderType::Depth:
-                // from ndc Zn to view space -Ze(since Zn is non-linear!), that is dist below
-                {
-                    float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));
-                    content_.color=glm::vec4( (255.0*dist-far_plane_)/(near_plane_-far_plane_));
-                }
-                break;
-
-            case ShaderType::Normal:
-            // 法向量在z轴方向上的可视化
-                content_.color=glm::vec4(content_.normal[2]*255.0f);
-                break;
-
-            case ShaderType::Frame:
-                if(bary.x==0||bary.y==0||bary.z==0)
-                    content_.color=glm::vec4(255.0f);
-                break;
-
-            case ShaderType::Texture:
-                break;   
-
-            default:
-                break;                                           
+        if   (checkShader(ShaderType::Texture)&&material_){
+            auto ami=material_->getTexture(MltMember::Ambient);
+            auto diff=material_->getTexture(MltMember::Diffuse);
+            auto spec=material_->getTexture(MltMember::Specular);
+            float u,v;
+            u=glm::dot(glm::vec3(v1->uv_[0],v2->uv_[0],v3->uv_[0]),correct_bary);
+            v=glm::dot(glm::vec3(v1->uv_[1],v2->uv_[1],v3->uv_[1]),correct_bary);
+            if(ami){
+                ami->getColorBilinear(u,v, content_.color);
+                return true;
+            }
+            else if(diff){
+                diff->getColorBilinear(u,v, content_.color);
+                return true;
+            }
+            else if(spec){
+                spec->getColorBilinear(u,v, content_.color);
+                return true;
+            }
         }
-        
+        if(checkShader(ShaderType::Color)){
+            for(int i=0;i<4;++i)
+                content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),correct_bary);
+            return true;
+        }
+        if(checkShader(ShaderType::Depth)){
+            // from ndc Zn to view space -Ze(since Zn is non-linear!), that is dist below
+            float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));
+            content_.color=glm::vec4( (255.0*dist-far_plane_)/(near_plane_-far_plane_));
+            return true;
+        }
+        if(checkShader(ShaderType::Normal)){
+            content_.color=glm::vec4(content_.normal[2]*255.0f);
+            return true;
+        }
+        else{
+            content_.color=glm::vec4(0,0,155,1);
+            return true;
+        }
         
         return true;
     }

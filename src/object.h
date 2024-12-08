@@ -3,6 +3,7 @@
 #include"common_include.h"
 #include"vertex.h"
 #include "tiny_obj_loader.h"
+#include"material.h"
 
 
 // specify different types of objects  
@@ -13,7 +14,6 @@ enum class PrimitiveType{
     MESH=3,
 };
 
-//@Todo: struct Materia
 
 // the base class for all kinds of objects to be rendered
 class ObjectDesc{
@@ -21,17 +21,24 @@ public:
     void setModel2World(glm::mat4& model){ mat_model_=model; }
     void addTransform(glm::mat4& model){ mat_model_=model*mat_model_;}
 
-    //fill the `vector<Vertex> vertices_` 
     virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false)=0;
+    virtual void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)=0;
     virtual void printInfo() const=0;
     virtual void clear()=0;
 
     inline std::vector<Vertex>& getVertices() { return vertices_;}
     inline std::vector<glm::vec3>& getFaceNorms() { return face_normals_;}
     inline const std::vector<uint32_t>& getIndices()const {return indices_;}
+    inline const std::vector<std::shared_ptr<Material>>& getMtls()const{ return mtls_; }
+    inline const std::vector<int>& getMtlIdx()const{ return mtlidx_; }
+    
     inline std::string getName()const{return name_;}
     inline PrimitiveType getPrimitiveType()const{ return type_;}
     inline glm::mat4 getModel()const{ return mat_model_; }
+    inline int getVerticesNum()const{ return vertices_.size(); }
+
+    inline bool isBackCulling()const{ return do_back_culling_; }
+    inline void setBackCulling(bool flag){do_back_culling_=flag;}
 
 
 protected:
@@ -45,10 +52,14 @@ protected:
     // the normal for all faces, only availabel for MESH
     std::vector<glm::vec3> face_normals_;
 
-    std::shared_ptr<Texture> texture_;
+    // all the information of materials
+    std::vector<std::shared_ptr<Material>>mtls_;  
+    // each triangle's material index pointer
+    std::vector<int> mtlidx_;
 
-
+    
     glm::mat4 mat_model_=glm::mat4(1.0f);
+    bool do_back_culling_=true;
 
 };
 
@@ -60,6 +71,8 @@ public:
   
     // note the obj must be triangulated
     void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
+    void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)override;
+    unsigned long long getFaceNum()const{return face_num_;}
 
     void clear() override{
         vertices_.clear();
@@ -74,7 +87,7 @@ public:
 private:
 
     // the total number of faces, hence vertices num is trible
-    unsigned long long face_num_;   
+    unsigned long long face_num_=0;   
 
     
 };
@@ -86,6 +99,9 @@ public:
     }
 
     void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
+    void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)override{
+        // to do
+    }
 
     void clear() override{
         vertices_.clear();
@@ -97,7 +113,7 @@ public:
 
 private:
     // the total number of lines, hence vertices num is line_num_+1
-    unsigned long long line_num_;   
+    unsigned long long line_num_=0;   
 
 };
 
@@ -128,14 +144,15 @@ class ObjLoader{
 public:
     ObjLoader()=delete;
 
-    ObjLoader(std::string str,bool flipn=false){
+    ObjLoader(std::string str,bool flipn=false,bool backculling=true){
         // 1.set properties
         filename_=str;
         flip_normals_=flipn;
+        back_culling_=backculling;
         
         // 2. do things
         readObjFile(str);
-        setObject();
+        setObject(str);
     }
 
     void setFileAndRead(std::string str){
@@ -155,13 +172,17 @@ public:
         return all_objects_;
     }
 
+    std::vector<std::unique_ptr<Material>>& getMtls(){
+        return all_mlts_;
+    }
+
     inline void getNums(int& vn,int& fn)const{
         vn=total_vertex_num_;
         fn=total_face_num_;
     }
 
     
-    void setObject();
+    void setObject(std::string filepath);
 
     void readObjFile(std::string inputfile="");
 
@@ -174,8 +195,10 @@ private:
     int total_face_num_=0;
 
     bool flip_normals_=false;
+    bool back_culling_=true;
 
     std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
+    std::vector<std::unique_ptr<Material>> all_mlts_;
 
 };
 
