@@ -7,11 +7,33 @@
 #include"AABB.h"
 #include"utils.h"
 #include"shader.h"
+#include"../light.h"
 #include <GLFW/glfw3.h>
+
+// 定义裁剪平面
+enum class ClipPlane {
+    Left,
+    Right,
+    Bottom,
+    Top,
+    Near,
+    Far
+};
+
+// 定义裁剪平面的位标志
+enum ClipPlaneBit {
+    CLIP_LEFT   = 1 << 0, // 000001
+    CLIP_RIGHT  = 1 << 1, // 000010
+    CLIP_BOTTOM = 1 << 2, // 000100
+    CLIP_TOP    = 1 << 3, // 001000
+    CLIP_NEAR   = 1 << 4, // 010000
+    CLIP_FAR    = 1 << 5  // 100000
+};
+
 
 
 struct RenderSetting{
-    ShaderSetting shader_setting;
+    ShaderSwitch shader_switch;
 };
 
 class Render{
@@ -45,16 +67,19 @@ public:
         zbuffer_.clear();
     }
 
+    inline  Camera& getCamera(){ return camera_;}
+    inline const ColorBuffer& getColorBuffer()const{ return colorbuffer_;}
+    inline const Scene& getScene()const{ return scene_;}
+
     // PIPELINE
 
     void pipelineInit(const RenderSetting & setting=RenderSetting());
     void pipelineBegin();
 
+    int pipelineClipping(std::vector<Vertex>& v,std::vector<Vertex>& out);
+    void clipWithPlane(ClipPlane plane,std::vector<Vertex>&in,std::vector<Vertex>&out);
     bool backCulling(const glm::vec3& face_norm,const glm::vec3& dir)const;
 
-    inline  Camera& getCamera(){ return camera_;}
-    inline const ColorBuffer& getColorBuffer()const{ return colorbuffer_;}
-    inline const Scene& getScene()const{ return scene_;}
 
     // UI
     void handleKeyboardInput(int key, int action);
@@ -62,6 +87,8 @@ public:
     void moveCamera();
 
     // DEBUG
+    void loadDemoScene(std::string name,ShaderType shader);
+
     void printMatrix(const glm::mat4& mat,const std::string name)const{
         std::cout<<name<<std::endl;
         for(int i=0;i<4;++i){

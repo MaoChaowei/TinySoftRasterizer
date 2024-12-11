@@ -16,14 +16,13 @@ int main(void) {
     // init my render
     Render render;
     render.setViewport(1600,16.0/9.0,60.0);
-    render.addScene(std::string("assets/model/Brickwall/brickwall.obj"),false,false);
-    // render.addScene(std::string("assets/model/Bunny.obj"),false);
-    render.addScene(std::string("assets/model/cube.obj"),true);
-    // render.addScene(std::string("assets/model/cube.obj"));
+
+    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);
+    // render.loadDemoScene("Brickwall",ShaderType::Normal);
 
     auto& camera=render.getCamera();
     camera.setMovement(0.1,0.1);
-    camera.setFrastrum(1.0,500.0);
+    camera.setFrastrum(1.0,1000.0);
 
     auto& colorbuffer=render.getColorBuffer();
     auto& scene=render.getScene();
@@ -33,8 +32,7 @@ int main(void) {
     int height=camera.getImageHeight();
     
     RenderSetting setting;
-    setting.shader_setting.type=ShaderType::ORDER;
-    setting.shader_setting.flags=ShaderSwitch::ALL_ON;
+    setting.shader_switch=ShaderSwitch::ALL_ON;
     // setting.shader_setting.flags=ShaderSwitch::ALL_ON^ShaderSwitch::BackCulling;
 
 
@@ -51,28 +49,28 @@ int main(void) {
     render.pipelineInit(setting);
     while (!window.shouldClose()) {
        
-        if(1){// 简单的模型移动
+        // if(1){// 简单的模型移动
            
-            static int angle=0;
-            // angle=(++angle)%360;
-            glm::vec3 model_position1{100,-100,-300};
-            // glm::vec3 model_position1{0,0,0};
-            // M=T*R*S
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position1);
-            glm::mat4 rotate=glm::rotate(glm::mat4(1.0f), glm::radians((float)angle), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
-            glm::mat4 model_matrix=translation*rotate*scale;
+        //     static int angle=0;
+        //     // angle=(++angle)%360;
+        //     glm::vec3 model_position1{100,-100,-300};
+        //     // glm::vec3 model_position1{0,0,0};
+        //     // M=T*R*S
+        //     glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
+        //     glm::mat4 translation = glm::translate(glm::mat4(1.0f),model_position1);
+        //     glm::mat4 rotate=glm::rotate(glm::mat4(1.0f), glm::radians((float)angle), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+        //     glm::mat4 model_matrix=translation*rotate*scale;
 
-            objs[0]->setModel2World(model_matrix);
+        //     objs[0]->setModel2World(model_matrix);
 
-            glm::vec3 model_position2{100,-100,-100};
-            // M=T*R*S
-            glm::mat4 translation2 = glm::translate(glm::mat4(1.0f),model_position2);
-            glm::mat4 model_matrix2=translation2*rotate*scale;
+        //     glm::vec3 model_position2{100,-100,-100};
+        //     // M=T*R*S
+        //     glm::mat4 translation2 = glm::translate(glm::mat4(1.0f),model_position2);
+        //     glm::mat4 model_matrix2=translation2*rotate*scale;
 
-            objs[1]->setModel2World(model_matrix2);
+        //     objs[1]->setModel2World(model_matrix2);
 
-        }
+        // }
         
         /* RENDERING */
         render.moveCamera();

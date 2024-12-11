@@ -8,4 +8,5 @@ void printvec3(glm::vec3 v,std::string str=""){
     std::cout<<": { "<<v.x<<", "<<v.y<<", "<<v.z<<"}\n";
 }
 
+
 }

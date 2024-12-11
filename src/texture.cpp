@@ -3,7 +3,7 @@
 #include "stb_image.h"
 
 
-void Texture::getColorBilinear(float x,float y,glm::vec4& color){
+glm::vec4 Texture::getColorBilinear(float x,float y){
     x=std::clamp(x,0.0f,1.0f);
     y=std::clamp(y,0.0f,1.0f);
     float img_x=x*(width_-1);
@@ -30,7 +30,8 @@ void Texture::getColorBilinear(float x,float y,glm::vec4& color){
 
     glm::vec4 C_low    = learp(fx, C00, C10);
     glm::vec4 C_up = learp(fx, C01, C11);
-    color = learp(fy, C_low, C_up);
+    
+    return learp(fy, C_low, C_up);
 }
 
 

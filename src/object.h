@@ -14,6 +14,9 @@ enum class PrimitiveType{
     MESH=3,
 };
 
+// forward declair
+enum class ShaderType;
+
 
 // the base class for all kinds of objects to be rendered
 class ObjectDesc{
@@ -21,7 +24,6 @@ public:
     void setModel2World(glm::mat4& model){ mat_model_=model; }
     void addTransform(glm::mat4& model){ mat_model_=model*mat_model_;}
 
-    virtual void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false)=0;
     virtual void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)=0;
     virtual void printInfo() const=0;
     virtual void clear()=0;
@@ -40,6 +42,9 @@ public:
     inline bool isBackCulling()const{ return do_back_culling_; }
     inline void setBackCulling(bool flag){do_back_culling_=flag;}
 
+    inline void setShader(ShaderType t){ shader_=t; }
+    inline ShaderType getShader(){ return shader_; }
+
 
 protected:
     std::string name_;
@@ -57,9 +62,11 @@ protected:
     // each triangle's material index pointer
     std::vector<int> mtlidx_;
 
-    
     glm::mat4 mat_model_=glm::mat4(1.0f);
+
     bool do_back_culling_=true;
+
+    ShaderType shader_;
 
 };
 
@@ -70,7 +77,6 @@ public:
     }
   
     // note the obj must be triangulated
-    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
     void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)override;
     unsigned long long getFaceNum()const{return face_num_;}
 
@@ -98,7 +104,6 @@ public:
         type_=PrimitiveType::LINE;
     }
 
-    void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals=false) override;
     void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)override{
         // to do
     }
@@ -177,8 +182,8 @@ public:
     }
 
     inline void getNums(int& vn,int& fn)const{
-        vn=total_vertex_num_;
-        fn=total_face_num_;
+        vn+=total_vertex_num_;
+        fn+=total_face_num_;
     }
 
     

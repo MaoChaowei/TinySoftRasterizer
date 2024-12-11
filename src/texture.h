@@ -20,7 +20,7 @@ public:
     void loadFromFile(std::string filename);
 
 
-    void getColorBilinear(float x,float y,glm::vec4& color);
+    glm::vec4 getColorBilinear(float x,float y);
 
 private:
     int width_;

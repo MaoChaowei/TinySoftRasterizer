@@ -11,11 +11,26 @@ struct Vertex{
 
     bool discard=false; // set this to true when the vertex is out of clip space
     glm::vec3 w_pos_;    // world space position
-    float c_pos_w;       // clip space w value
+    glm::vec4 c_pos_;    // clip space position
     glm::vec3 s_pos_;    // screen space position  // x,y in screen-space and z in [-1,1] where -1 is the near-flat 
     glm::vec3 w_norm_;   // world space norm       // n[0~2]:normals of vertices in world space, that is norm_world=Model_mat^-1^T*norm_model; n[3]is the face normal
 
     Vertex():pos_(glm::vec3(0.f)),norm_(glm::vec3(0.f)),color_(glm::vec4(-1.f)),uv_(glm::vec2(-1.f)){};
+    
+    Vertex vertexInterp(const Vertex& v2, float t) const {
+        Vertex v3;
+
+        v3.color_ = color_ * (1.0f - t) + v2.color_ * t;
+        v3.uv_ = uv_ * (1.0f - t) + v2.uv_ * t;
+
+        v3.w_pos_ = w_pos_ * (1.0f - t) + v2.w_pos_ * t;
+        v3.c_pos_ = c_pos_ * (1.0f - t) + v2.c_pos_ * t;
+        v3.w_norm_ = w_norm_ * (1.0f - t) + v2.w_norm_ * t;
+
+        v3.discard = false;
+
+        return v3;
+    }
 };
 
 // 为 Vertex 结构体重载 operator<<

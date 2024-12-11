@@ -10,10 +10,11 @@ enum class MltMember{
 
 class Material{
 public:
-    void setADS(glm::vec3 am,glm::vec3 di,glm::vec3 sp){
+    void setADS(glm::vec3 am,glm::vec3 di,glm::vec3 sp,float shininess=1){
         ambient_=am;
         diffuse_=di;
         specular_=sp;
+        shininess_=shininess;
     }
     void setName(std::string name){ name_= name; }
     void setTexture(MltMember mtype,std::string path){
@@ -52,13 +53,15 @@ public:
     const glm::vec3 getDiffuse()const{ return diffuse_; }
     const glm::vec3 getSpecular()const{ return specular_; }
     const std::string getName()const{ return name_; }
+    const float getShininess() const{ return shininess_;}
 
-private:
+public:
     std::string name_;
 
     glm::vec3 ambient_;
     glm::vec3 diffuse_;
     glm::vec3 specular_;
+    float shininess_=32;
 
     std::string ambient_path_;
     std::string diffuse_path_;
