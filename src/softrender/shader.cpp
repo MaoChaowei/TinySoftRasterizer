@@ -75,116 +75,35 @@ bool Shader::fragmentInterp(uint32_t x,uint32_t y,float cur_depth){
  */
 bool Shader::fragmentShader(uint32_t x,uint32_t y,float cur_depth){
     auto& otype=content_.primitive_type;
-    auto& v1=content_.v[0];
-    auto& v2=content_.v[1];
-    auto& v3=content_.v[2];
 
     if(otype==PrimitiveType::MESH){
-        // if(v1->discard||v2->discard||v3->discard)
-        //     return false;
-
+    /*--------------------- Interpolate ---------------------*/
         bool pass=fragmentInterp(x,y,cur_depth);
         if(pass==false)
             return false;
 
-        /*--------------------- Get materials ---------------------*/
-        Material temp;  // record materials of this fragment
-        if  (checkShader(ShaderType::Texture)&&material_){                                        
-            auto ami=material_->getTexture(MltMember::Ambient);
-            auto diff=material_->getTexture(MltMember::Diffuse);
-            auto spec=material_->getTexture(MltMember::Specular);
-            float u,v;
-            u=glm::dot(glm::vec3(v1->uv_[0],v2->uv_[0],v3->uv_[0]),content_.vbary);
-            v=glm::dot(glm::vec3(v1->uv_[1],v2->uv_[1],v3->uv_[1]),content_.vbary);
+    /*--------------------- Shading ---------------------*/
 
-            if(diff){// get diffuse color
-                temp.diffuse_= diff->getColorBilinear(u,v);
-            }else{
-                temp.diffuse_= (255.0f)*material_->diffuse_;
-            }
-            //  NOLIGHT: diffuse color is enough
-            if(!checkShader(ShaderType::LIGHTSHADER)){
-                content_.color=glm::vec4(temp.diffuse_,1.0f);
-                return true;
-            }
+        if  (checkShader(ShaderType::Texture)&&material_)                               
+            textureShader();
 
-            if(ami){// get ambient color
-                temp.ambient_= ami->getColorBilinear(u,v);
-            }else{
-                temp.ambient_= (255.0f)*material_->ambient_;
-            }
-            if(spec){// get specular color
-                temp.specular_= spec->getColorBilinear(u,v);
-            }else{
-                temp.specular_= (255.0f)*material_->specular_;
-            }
-        }
-        else if(checkShader(ShaderType::Color)){
-            if(!checkShader(ShaderType::LIGHTSHADER)){
-                for(int i=0;i<4;++i)
-                    content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
-                return true;
-            }
-             
-            for(int i=0;i<3;++i)
-                temp.diffuse_[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
+        else if(checkShader(ShaderType::Color))
+            colorShader();
+        
+        else if(checkShader(ShaderType::Depth))
+            depthShader();
+        
+        else if(checkShader(ShaderType::Normal))
+            normalShader();
+        
+        else if(checkShader(ShaderType::Light))
+            lightShader();
 
-            temp.ambient_=temp.diffuse_;
-            temp.specular_=(0.2f)*temp.diffuse_;
-        }
-        else if(checkShader(ShaderType::Depth)){
-            
-            float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));        // from ndc Zn to view space -Ze(since Zn is non-linear!)
-            content_.color=glm::vec4( (255.0*dist-far_plane_)/(near_plane_-far_plane_));
-            return true;
-        }
-        else if(checkShader(ShaderType::Normal)){
-            content_.color= glm::vec4((content_.normal * 0.5f + 0.5f)*255.0f, 1.0); 
-            return true;
-        }
-        else if(checkShader(ShaderType::Light)){
-            content_.color=glm::vec4(255,255,255,1);
-            return true;
-        }
-
-         /*--------------------- LIGHT shading ---------------------*/
-        assert(checkShader(ShaderType::LIGHTSHADER));
-
-        content_.color=glm::vec4(0.f);
-        if(checkShader(ShaderType::BlinnPhone)){
-            // position in world space
-            glm::vec3 fragpos;  
-            for(int i=0;i<3;++i)
-                fragpos[i]=glm::dot(glm::vec3(v1->w_pos_[i],v2->w_pos_[i],v3->w_pos_[i]),content_.vbary);
-
-            // multiple lights shading by blinn-phong shader
-            for(auto light:lights_){
-                if(LightType::Dirction==light->type_){
-                    std::shared_ptr<DirLight> ptr=std::dynamic_pointer_cast<DirLight>(light);
-                    if(ptr){
-                        shadeDirectLight(*ptr,content_.normal,camera_->getPosition(),fragpos,temp); 
-                    }else{
-                        std::cerr<<"fail to get ptr!\n";
-                        exit(-1);
-                    }
-                }else{
-                    assert(LightType::Point==light->type_);
-                    std::shared_ptr<PointLight> ptr=std::dynamic_pointer_cast<PointLight>(light);
-                    if(ptr){
-                        shadePointLight(*ptr,content_.normal,camera_->getPosition(),fragpos,temp);
-                    }else{
-                        std::cerr<<"fail to get ptr!\n";
-                        exit(-1);
-                    }
-                }
-            }
-            // color processing...
-            for(int i=0;i<3;++i){
-                content_.color[i]=std::min(255.f,content_.color[i]);
-            }
+        // color processing...
+        for(int i=0;i<3;++i){
+            content_.color[i]=std::min(255.f,content_.color[i]);
         }
         
-        return true;
     }
     else if(otype==PrimitiveType::LINE){
         std::cout<<"fragmentShader: I haven't supported LINE rendering yet~\n";
@@ -194,6 +113,113 @@ bool Shader::fragmentShader(uint32_t x,uint32_t y,float cur_depth){
     }
     
     return true;
+}
+
+void Shader::blinnphoneShader(Material& mtl){
+    content_.color=glm::vec4(0.f);
+
+    auto& v1=content_.v[0];
+    auto& v2=content_.v[1];
+    auto& v3=content_.v[2];
+    // position in world space
+    glm::vec3 fragpos;  
+    for(int i=0;i<3;++i)
+        fragpos[i]=glm::dot(glm::vec3(v1->w_pos_[i],v2->w_pos_[i],v3->w_pos_[i]),content_.vbary);
+
+    // multiple lights shading by blinn-phong shader
+    for(auto light:lights_){
+        if(LightType::Dirction==light->type_){
+            std::shared_ptr<DirLight> ptr=std::dynamic_pointer_cast<DirLight>(light);
+            if(ptr){
+                shadeDirectLight(*ptr,content_.normal,camera_->getPosition(),fragpos,mtl); 
+            }else{
+                std::cerr<<"fail to get ptr!\n";
+                exit(-1);
+            }
+        }else{
+            assert(LightType::Point==light->type_);
+            std::shared_ptr<PointLight> ptr=std::dynamic_pointer_cast<PointLight>(light);
+            if(ptr){
+                shadePointLight(*ptr,content_.normal,camera_->getPosition(),fragpos,mtl);
+            }else{
+                std::cerr<<"fail to get ptr!\n";
+                exit(-1);
+            }
+        }
+    }
+}
+
+void Shader::textureShader(){
+    Material temp;  // record materials of this fragment
+    auto& v1=content_.v[0];
+    auto& v2=content_.v[1];
+    auto& v3=content_.v[2];
+
+    auto ami=material_->getTexture(MltMember::Ambient);
+    auto diff=material_->getTexture(MltMember::Diffuse);
+    auto spec=material_->getTexture(MltMember::Specular);
+    float u,v;
+    u=glm::dot(glm::vec3(v1->uv_[0],v2->uv_[0],v3->uv_[0]),content_.vbary);
+    v=glm::dot(glm::vec3(v1->uv_[1],v2->uv_[1],v3->uv_[1]),content_.vbary);
+
+    if(diff){// get diffuse color
+        temp.diffuse_= diff->getColorBilinear(u,v);
+    }else{
+        temp.diffuse_= (255.0f)*material_->diffuse_;
+    }
+
+    if(!checkShader(ShaderType::LIGHTSHADER)){
+        content_.color=glm::vec4(temp.diffuse_,1.0f);
+    }
+    else{
+        if(ami){// get ambient color
+            temp.ambient_= ami->getColorBilinear(u,v);
+        }else{
+            temp.ambient_= (255.0f)*material_->ambient_;
+        }
+        if(spec){// get specular color
+            temp.specular_= spec->getColorBilinear(u,v);
+        }else{
+            temp.specular_= (255.0f)*material_->specular_;
+        }
+        if(checkShader(ShaderType::BlinnPhone))
+            blinnphoneShader(temp);
+    }
+}
+
+void Shader::colorShader(){
+    Material temp;  // record materials of this fragment
+    auto& v1=content_.v[0];
+    auto& v2=content_.v[1];
+    auto& v3=content_.v[2];
+
+    if(!checkShader(ShaderType::LIGHTSHADER)){
+        for(int i=0;i<4;++i)
+            content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
+    }
+    else{
+        for(int i=0;i<3;++i)
+            temp.diffuse_[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
+
+        temp.ambient_=temp.diffuse_;
+        temp.specular_=(0.2f)*temp.diffuse_;
+
+        if(checkShader(ShaderType::BlinnPhone))
+            blinnphoneShader(temp);
+    }
+}
+
+void Shader::lightShader(){
+    content_.color=glm::vec4(255,255,255,1);
+}
+
+void Shader::depthShader(){
+    float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));        // from ndc Zn to view space -Ze(since Zn is non-linear!)
+    content_.color=glm::vec4( (255.0*dist-far_plane_)/(near_plane_-far_plane_));
+}
+
+void Shader::normalShader(){
+    content_.color= glm::vec4((content_.normal * 0.5f + 0.5f)*255.0f, 1.0); 
 }
 
 

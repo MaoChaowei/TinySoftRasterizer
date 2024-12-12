@@ -1,16 +1,16 @@
 /* define all the implementation of the graph pipeline here */
 #pragma once
-#include"common_include.h"
-#include"../camera.h"
-#include"../scene_loader.h"
-#include"../buffer.h"
+#include"common/common_include.h"
+#include"common/cputimer.h"
+#include"softrender/shader.h"
+#include"camera.h"
+#include"scene_loader.h"
+#include"buffer.h"
 #include"AABB.h"
 #include"utils.h"
-#include"shader.h"
-#include"../light.h"
+#include"light.h"
 #include <GLFW/glfw3.h>
 
-// 定义裁剪平面
 enum class ClipPlane {
     Left,
     Right,
@@ -19,18 +19,6 @@ enum class ClipPlane {
     Near,
     Far
 };
-
-// 定义裁剪平面的位标志
-enum ClipPlaneBit {
-    CLIP_LEFT   = 1 << 0, // 000001
-    CLIP_RIGHT  = 1 << 1, // 000010
-    CLIP_BOTTOM = 1 << 2, // 000100
-    CLIP_TOP    = 1 << 3, // 001000
-    CLIP_NEAR   = 1 << 4, // 010000
-    CLIP_FAR    = 1 << 5  // 100000
-};
-
-
 
 struct RenderSetting{
     ShaderSwitch shader_switch;
@@ -124,12 +112,13 @@ private:
     glm::mat4 mat_perspective_; // world to NDC
     glm::mat4 mat_viewport_;    // NDC to screen
 
-    // screen aabb box
-    AABB2d box_;
+    AABB2d box_;                // screen aabb box
 
 public:
     // for ui
     float delta_time_;          // time spent to render last frame; (ms)
     bool keys_[1024]={0}; 
+    
+    CPUTimer timer_;            // (us)
 
 };

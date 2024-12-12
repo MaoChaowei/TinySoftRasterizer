@@ -9,6 +9,9 @@
  * @param shader 
  */
 void Render::loadDemoScene(std::string name,ShaderType shader){
+#ifdef TIME_RECORD
+    timer_.start("loadDemoScene");
+#endif
     if(name=="Boxes"){
         {
             addScene(std::string("assets/model/cube/cube.obj"),true);
@@ -103,4 +106,10 @@ void Render::loadDemoScene(std::string name,ShaderType shader){
         std::cerr<<"unknown demo~\n";
         exit(-1);
     }
+
+#ifdef TIME_RECORD
+    timer_.stop("loadDemoScene");
+    timer_.reportElapsedTime("loadDemoScene");
+    timer_.del("loadDemoScene");
+#endif
 }

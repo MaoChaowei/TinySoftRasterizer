@@ -1,10 +1,11 @@
 #pragma once
 #include"common/common_include.h"
-#include"../vertex.h"
-#include"../object.h"
-#include"../material.h"
-#include"../light.h"
-#include"../camera.h"
+#include"common/cputimer.h"
+#include"vertex.h"
+#include"object.h"
+#include"material.h"
+#include"light.h"
+#include"camera.h"
 
 // specify object's shader type
 enum class ShaderType{
@@ -76,6 +77,7 @@ public:
     inline void bindMaterial(std::shared_ptr<Material> mp){ material_=mp; }
     inline void bindCamera(std::shared_ptr<Camera> cp){ camera_=cp; }
     inline void bindLights(const std::vector<std::shared_ptr<Light>>& light){ lights_=light; }
+    inline void bindTimer(CPUTimer* t){ timer_=t; }
 
     inline void setShaderType(ShaderType st){type_=st;}
     inline void setPrimitiveType( PrimitiveType t){ content_.primitive_type=t; }
@@ -121,12 +123,20 @@ public:
     bool fragmentShader(uint32_t x,uint32_t y,float cur_depth);
     bool fragmentInterp(uint32_t x,uint32_t y,float cur_depth);
 
-    // color calculation tools
+    // different shaders
+    void blinnphoneShader(Material& mtl);
+    void textureShader();
+    void colorShader();
+    void depthShader();
+    void normalShader();
+    void lightShader();
+
+    // local light calculation 
     void shadeDirectLight(const DirLight& light,const glm::vec3& normal,const glm::vec3& eyepos,const glm::vec3& fpos,const Material& mtl);
     void shadePointLight(const PointLight& light,const glm::vec3& normal,const glm::vec3& eyepos,const glm::vec3& fpos,const Material& mtl);
 
 
-protected:
+private:
     ShaderContentRecord content_;
     ShaderType type_;
     ShaderSwitch flags_;
@@ -141,6 +151,8 @@ protected:
 
     float far_plane_;
     float near_plane_;
+
+    CPUTimer* timer_;
 
 };
 

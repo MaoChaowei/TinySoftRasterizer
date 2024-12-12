@@ -14,6 +14,11 @@
 #include<memory>
 #include"math.h"
 
+// switch for time-recording
+#define TIME_RECORD
+#ifdef TIME_RECORD
+#define MILLISECOND
+#endif
 namespace srender{
     
 // 定义浮点数比较的容差

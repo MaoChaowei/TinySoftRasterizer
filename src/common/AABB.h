@@ -3,21 +3,6 @@
 #include"common_include.h"
 #include"algorithm"
 
-// struct Point2d{
-//     int x;
-//     int y;
-//     Point2d():x(0),y(0){}
-//     Point2d(int x,int y):x(x),y(y){}
-//     Point2d(glm::vec4& t){
-//         x=t.x;
-//         y=t.y;
-//     }
-//     Point2d(glm::vec3& t){
-//         x=t.x;
-//         y=t.y;
-//     }
-// };
-
 struct AABB2d{
     glm::vec2 min;
     glm::vec2 max;

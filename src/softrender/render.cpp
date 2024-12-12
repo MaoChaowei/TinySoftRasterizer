@@ -20,6 +20,7 @@ void Render::pipelineInit(const RenderSetting & setting){
     sdptr_=std::make_shared<Shader>();
     sdptr_->setShaderSwitch(setting.shader_switch);
     sdptr_->setFrustum(camera_.getNear(),camera_.getFar());
+    sdptr_->bindTimer(&timer_);
 
     is_init_=true;
 }
@@ -99,6 +100,7 @@ bool Render::backCulling(const glm::vec3& face_norm,const glm::vec3& dir) const 
 }
 
 void Render::pipelineBegin(){
+
     if(is_init_==false){
         std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
         return;
@@ -137,13 +139,22 @@ void Render::pipelineBegin(){
         sdptr_->setPrimitiveType(otype);
 
         /*----- Geometry phrase --------*/
-        // MVP => clip space => NDC => screen space 
+#ifdef TIME_RECORD
+        timer_.start("110.MVP");
+#endif
+        // MVP => clip space
         for(auto& v:objvertices){
             sdptr_->vertexShader(v);
         }
 
+#ifdef TIME_RECORD
+        timer_.stop("110.MVP");
+#endif
         /*----- Rasterize phrase --------*/
         // for each primitive
+#ifdef TIME_RECORD
+        timer_.start("120.Rasterize phrase");
+#endif
         int face_cnt=0;
         for(auto it=objindices.begin();it!=objindices.end();++face_cnt){
             // do clipping in clip space and reassemble primitives
@@ -161,7 +172,7 @@ void Render::pipelineBegin(){
                 Vertex* v3=&out[t*3+2];
                 // assembly primitive
                 sdptr_->assemblePrimitive(v1,v2,v3);
-                // perspective division and viewport transformation
+                // clip space => NDC => screen space 
                 sdptr_->vertex2Screen(*v1);
                 sdptr_->vertex2Screen(*v2);
                 sdptr_->vertex2Screen(*v3);
@@ -194,16 +205,30 @@ void Render::pipelineBegin(){
                     default:
                         break;
                 }
-            }
+            } // end for-primitive_num
 
-        }
+        }// end for-objindices
+
+#ifdef TIME_RECORD
+        timer_.stop("120.Rasterize phrase");
+#endif
 
     }
+
 }
 
 
+namespace ClipTools{
+// 定义裁剪平面的位标志
+enum ClipPlaneBit {
+    CLIP_LEFT   = 1 << 0, // 000001
+    CLIP_RIGHT  = 1 << 1, // 000010
+    CLIP_BOTTOM = 1 << 2, // 000100
+    CLIP_TOP    = 1 << 3, // 001000
+    CLIP_NEAR   = 1 << 4, // 010000
+    CLIP_FAR    = 1 << 5  // 100000
+};
 
-// 计算顶点的 Outcode
 int computeOutcode(const glm::vec4& pos) {
     int outcode = 0;
     if (pos.x < -pos.w) outcode |= CLIP_LEFT;
@@ -236,7 +261,6 @@ bool isInside(const Vertex& vertex, ClipPlane plane) {
 }
 
 Vertex computeIntersection(const Vertex& v1, const Vertex& v2, ClipPlane plane) {
-    // 根据裁剪平面计算 t
     float A, B, C, D;
     switch (plane) {
         case ClipPlane::Left:
@@ -264,17 +288,16 @@ Vertex computeIntersection(const Vertex& v1, const Vertex& v2, ClipPlane plane) 
     float startVal = A * v1.c_pos_.x + B * v1.c_pos_.y + C * v1.c_pos_.z + D * v1.c_pos_.w;
     float endVal = A * v2.c_pos_.x + B * v2.c_pos_.y + C * v2.c_pos_.z + D * v2.c_pos_.w;
 
-    // 避免分母为零
+    // denom check
     if (fabs(startVal - endVal) < 1e-6f) {
         return v1; 
     }
 
     float t = startVal / (startVal - endVal);
-    // Clamp t to [0,1] 以避免数值问题
     t = glm::clamp(t, 0.0f, 1.0f);
     return v1.vertexInterp(v2, t);
 }
-
+}
 
 
 void Render::clipWithPlane(ClipPlane plane, std::vector<Vertex>& in, std::vector<Vertex>& out) {
@@ -288,8 +311,8 @@ void Render::clipWithPlane(ClipPlane plane, std::vector<Vertex>& in, std::vector
         const Vertex& current = in[i];
         const Vertex& nextPos = in[next];
 
-        bool currentInside = isInside(current, plane);
-        bool nextInside = isInside(nextPos, plane);
+        bool currentInside = ClipTools::isInside(current, plane);
+        bool nextInside = ClipTools::isInside(nextPos, plane);
 
         if (currentInside && nextInside) {
             // Case 1: Both inside
@@ -297,12 +320,12 @@ void Render::clipWithPlane(ClipPlane plane, std::vector<Vertex>& in, std::vector
         }
         else if (currentInside && !nextInside) {
             // Case 2: Current inside, next outside
-            Vertex intersectVertex = computeIntersection(current, nextPos, plane);
+            Vertex intersectVertex = ClipTools::computeIntersection(current, nextPos, plane);
             result.push_back(intersectVertex);
         }
         else if (!currentInside && nextInside) {
             // Case 3: Current outside, next inside
-            Vertex intersectVertex = computeIntersection(current, nextPos, plane);
+            Vertex intersectVertex = ClipTools::computeIntersection(current, nextPos, plane);
             result.push_back(intersectVertex);
             result.push_back(nextPos);
         }
@@ -319,9 +342,9 @@ int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>&
     }
 
     // get outcode
-    int outcode1 = computeOutcode(vertices[0].c_pos_);
-    int outcode2 = computeOutcode(vertices[1].c_pos_);
-    int outcode3 = computeOutcode(vertices[2].c_pos_);
+    int outcode1 = ClipTools::computeOutcode(vertices[0].c_pos_);
+    int outcode2 = ClipTools::computeOutcode(vertices[1].c_pos_);
+    int outcode3 = ClipTools::computeOutcode(vertices[2].c_pos_);
 
     int outcode_OR = outcode1 | outcode2 | outcode3;
     int outcode_AND = outcode1 & outcode2 & outcode3;
@@ -375,8 +398,6 @@ int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>&
 
     return out.size() / 3;
 }
-
-
 
 
 
