@@ -48,11 +48,11 @@ inline ShaderSwitch operator^(const ShaderSwitch& s1,const ShaderSwitch& s2){
 }
 
 
-// per-primitive design,make sure each fragment knows its' context in pipeline
+// per-primitive design,make sure each fragment knows its' context in the pipeline
 struct ShaderContentRecord{
 
     // vertex shader output
-    Vertex* v[3];             // I can get all attribute of vetices~
+    Vertex* v[3];             // all attribute of vetices
     PrimitiveType primitive_type;   
 
     // fragment shader input

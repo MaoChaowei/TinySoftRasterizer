@@ -82,7 +82,7 @@ bool Shader::fragmentShader(uint32_t x,uint32_t y,float cur_depth){
         if(pass==false)
             return false;
 
-    /*--------------------- Shading ---------------------*/
+    /*---------------------   Shading   ---------------------*/
 
         if  (checkShader(ShaderType::Texture)&&material_)                               
             textureShader();

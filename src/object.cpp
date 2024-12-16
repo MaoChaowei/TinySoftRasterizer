@@ -211,18 +211,14 @@ void ObjLoader::readObjFile(std::string inputfile){
  * 
  */
 void ObjLoader::setObject(std::string filepath){
-    
-    auto mesh = std::make_unique<Mesh>();
-    auto line = std::make_unique<Line>();
+    auto mesh = std::make_unique<Mesh>();   // instance of the derived class
     mesh->initObject(reader_,filepath,flip_normals_,back_culling_);
-    // line->initObject(reader_,filepath,flip_normals_);
+
     total_face_num_=mesh->getFaceNum();
-    total_vertex_num_=mesh->getVerticesNum()+line->getVerticesNum();
+    total_vertex_num_=mesh->getVerticesNum();
 
     if(mesh->getVerticesNum()>0)
-        all_objects_.push_back(std::move(mesh));
-    if(line->getVerticesNum()>0)
-        all_objects_.push_back(std::move(line));
+        object_=std::move(mesh);
     
 }
 

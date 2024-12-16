@@ -13,7 +13,8 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     // init my render
     Render render;
-    render.loadDemoScene("Bunny",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
+    // render.loadDemoScene("Bunny",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
+    render.loadDemoScene("Boxes",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
     
     render.setViewport(1600,16.0/9.0,60.0);
     auto& camera=render.getCamera();

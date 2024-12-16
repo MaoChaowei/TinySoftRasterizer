@@ -21,14 +21,14 @@ enum class ShaderType;
 // the base class for all kinds of objects to be rendered
 class ObjectDesc{
 public:
-    void setModel2World(glm::mat4& model){ mat_model_=model; }
-    void addTransform(glm::mat4& model){ mat_model_=model*mat_model_;}
+
 
     virtual void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)=0;
     virtual void printInfo() const=0;
     virtual void clear()=0;
 
     inline std::vector<Vertex>& getVertices() { return vertices_;}
+    inline const std::vector<Vertex>& getconstVertices() const { return vertices_;}
     inline std::vector<glm::vec3>& getFaceNorms() { return face_normals_;}
     inline const std::vector<uint32_t>& getIndices()const {return indices_;}
     inline const std::vector<std::shared_ptr<Material>>& getMtls()const{ return mtls_; }
@@ -36,14 +36,11 @@ public:
     
     inline std::string getName()const{return name_;}
     inline PrimitiveType getPrimitiveType()const{ return type_;}
-    inline glm::mat4 getModel()const{ return mat_model_; }
+
     inline int getVerticesNum()const{ return vertices_.size(); }
 
     inline bool isBackCulling()const{ return do_back_culling_; }
     inline void setBackCulling(bool flag){do_back_culling_=flag;}
-
-    inline void setShader(ShaderType t){ shader_=t; }
-    inline ShaderType getShader(){ return shader_; }
 
 
 protected:
@@ -62,11 +59,7 @@ protected:
     // each triangle's material index pointer
     std::vector<int> mtlidx_;
 
-    glm::mat4 mat_model_=glm::mat4(1.0f);
-
     bool do_back_culling_=true;
-
-    ShaderType shader_;
 
 };
 
@@ -122,26 +115,24 @@ private:
 
 };
 
-class Point:public ObjectDesc{
-public:
-    Point(){
-        type_=PrimitiveType::POINT;
-    }
-//TODO
-    // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals) override;
+// class Point:public ObjectDesc{
+// public:
+//     Point(){
+//         type_=PrimitiveType::POINT;
+//     }
+// //TODO
+//     // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals) override;
 
-    // void clear() override;
+//     void clear() override{}
 
-    // // for debug use
-    // void setPointDemo();
-    // void printPointInfo() const;
+//     // // for debug use
+//     // void setPointDemo();
+//     // void printPointInfo() const;
 
-private:
-    // the total number of lines, hence vertices num is line_num_+1
-    unsigned long long point_num_;   
-
-
-};
+// private:
+//     // the total number of lines, hence vertices num is line_num_+1
+//     unsigned long long point_num_;   
+// };
 
 
 // a single read from .obj results in a `ObjLoader`
@@ -173,15 +164,15 @@ public:
         return reader_; // read only
     }
 
-    std::vector<std::unique_ptr<ObjectDesc>>& getObjects(){
-        return all_objects_;
+    std::unique_ptr<ObjectDesc>& getObjects(){
+        return object_;
     }
 
     std::vector<std::unique_ptr<Material>>& getMtls(){
         return all_mlts_;
     }
 
-    inline void getNums(int& vn,int& fn)const{
+    inline void updateNums(int& vn,int& fn)const{
         vn+=total_vertex_num_;
         fn+=total_face_num_;
     }
@@ -202,7 +193,7 @@ private:
     bool flip_normals_=false;
     bool back_culling_=true;
 
-    std::vector<std::unique_ptr<ObjectDesc>> all_objects_;
+    std::unique_ptr<ObjectDesc> object_;
     std::vector<std::unique_ptr<Material>> all_mlts_;
 
 };
