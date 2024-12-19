@@ -13,12 +13,13 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     // init my render
     Render render;
-    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);//ShaderType::BlinnPhone|ShaderType::ORDER
-    // render.loadDemoScene("Boxes",ShaderType::Frame);//ShaderType::BlinnPhone|ShaderType::ORDER
+    // render.loadDemoScene("Bunny",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
+    render.loadDemoScene("CornellBox",ShaderType::Depth);
+    // render.loadDemoScene("Boxes",ShaderType::Depth);
     
     render.setViewport(1600,16.0/9.0,60.0);
     auto& camera=render.getCamera();
-    camera.setMovement(0.1,0.1);
+    camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
 
     auto& colorbuffer=render.getColorBuffer();
@@ -29,6 +30,8 @@ int main(void) {
     
     RenderSetting setting;
     setting.shader_switch=ShaderSwitch::ALL_ON;
+    setting.show_tlas=true;
+    // setting.show_blas=true;
     // setting.shader_setting.flags=ShaderSwitch::ALL_ON^ShaderSwitch::BackCulling;
 
 

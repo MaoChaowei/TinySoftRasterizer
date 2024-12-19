@@ -70,10 +70,10 @@ class Shader{
 public:
     Shader(){}
     
-    inline void bindMVP(glm::mat4* m){ mvp_=m;}
-    inline void bindViewport(glm::mat4* m){ viewport_=m;}
-    inline void bindNormalMat(glm::mat4* m){ normal_mat_=m;}
-    inline void bindModelMat(glm::mat4* m){ model_mat_=m;}
+    inline void bindMVP(const glm::mat4* m){ mvp_=m;}
+    inline void bindViewport(const glm::mat4* m){ viewport_=m;}
+    inline void bindNormalMat(const glm::mat4* m){ normal_mat_=m;}
+    inline void bindModelMat(const glm::mat4* m){ model_mat_=m;}
     inline void bindMaterial(std::shared_ptr<Material> mp){ material_=mp; }
     inline void bindCamera(std::shared_ptr<Camera> cp){ camera_=cp; }
     inline void bindLights(const std::vector<std::shared_ptr<Light>>& light){ lights_=light; }
@@ -141,10 +141,10 @@ private:
     ShaderType type_;
     ShaderSwitch flags_;
 
-    glm::mat4 * mvp_;
-    glm::mat4 * viewport_;     // mvpv
-    glm::mat4 * normal_mat_;    // m-1T
-    glm::mat4 * model_mat_;     // m
+    const glm::mat4 * mvp_;
+    const glm::mat4 * viewport_;     // mvpv
+    const glm::mat4 * normal_mat_;    // m-1T
+    const glm::mat4 * model_mat_;     // m
     std::shared_ptr<Material> material_;
     std::vector<std::shared_ptr<Light>> lights_;
     std::shared_ptr<Camera> camera_;

@@ -71,7 +71,7 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
         {
             glm::vec3 model_position{0, -100, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));// 60
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(120));
             glm::mat4 model_matrix = translation * rotate * scale;
             addObjInstance(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
@@ -97,10 +97,10 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     else if (name == "CornellBox")
     {
         {
-            glm::vec3 model_position{200, -100, -400};
+            glm::vec3 model_position{200, -100, -200};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.5));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.2));
             glm::mat4 model_matrix = translation * rotate * scale;
             addObjInstance(std::string("assets/model/cornell_box/cornell_box.obj"), model_matrix,shader,false);
         }
@@ -121,7 +121,24 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
 
             scene_.addLight(std::make_shared<PointLight>(pt));
         }
+        {
+            glm::vec3 model_position{-100, -100, -400};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(12));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/ruins_building/SmallSetupRuins.obj"),model_matrix,shader,false);
+        }
+        {
+            glm::vec3 model_position{-100, -100, -300};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(20));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/Bunny.obj"), model_matrix,shader,false);
+        }
     }
+
     else
     {
         std::cerr << "unknown demo~\n";

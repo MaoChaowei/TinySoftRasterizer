@@ -10,7 +10,8 @@
 
 class Scene{
 public:
-    Scene(){};
+    Scene():tlas_(std::make_unique<TLAS>()){};
+
     void addLight(std::shared_ptr<Light> light){
         all_lights_.emplace_back(light);
     }
@@ -29,24 +30,33 @@ public:
             std::cout<<"Current face num: "<<face_num_<<std::endl;
         }
         // create ASInstance for obj
-        all_instances_.emplace_back( ASInstance(blas_map_[filename],model,shader) );
+        tlas_->all_instances_.emplace_back( blas_map_[filename],model,shader );
     }
 
     void buildTLAS(){
-        // TODO: building TLAS
+        tlas_->buildTLAS();
     }
 
     inline const  std::vector<ASInstance>& getAllInstances()const{
-        return all_instances_;
+        if(tlas_->all_instances_.size())
+            return tlas_->all_instances_;
+        else{
+            std::cerr<<"getAllInstances() have no instaces.\n";
+            exit(-1);
+        }
     }
 
     inline const std::vector<std::shared_ptr<Light>>& getLights()const{
         return all_lights_;
     } 
+    inline const TLAS& getTLAS()const{
+        return *tlas_;
+    }
 
     inline void clearScene(){
+        tlas_=std::make_unique<TLAS>();
         all_lights_.clear();
-        all_instances_.clear();
+        blas_map_.clear();
         vertex_num_=0;
         face_num_=0;
     }
@@ -55,8 +65,8 @@ public:
 private:
     
     // AS for objects
-    std::unordered_map<std::string,std::shared_ptr<BLAS> > blas_map_;
-    std::vector<ASInstance> all_instances_;         // AS->BLAS->objectdesc
+    std::unique_ptr<TLAS> tlas_;            // TLAS->AS->BLAS->objectdesc
+    std::unordered_map<std::string,std::shared_ptr<BLAS> > blas_map_;    
     int leaf_num_=4;
     int vertex_num_;
     int face_num_;

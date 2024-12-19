@@ -16,6 +16,9 @@ void Render::pipelineInit(const RenderSetting & setting){
     updateMatrix();
     setting_=setting;
 
+    // init TLAS
+    scene_.buildTLAS();
+
     // init shader
     sdptr_=std::make_shared<Shader>();
     sdptr_->setShaderSwitch(setting.shader_switch);
@@ -25,7 +28,7 @@ void Render::pipelineInit(const RenderSetting & setting){
     is_init_=true;
 }
 
-// the line must be clipped before sent to draw!
+// drawLine in screen space
 void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
     glm::vec4 color(255.0f);
     // make sure: x-axis is less steep and t1 is the left point
@@ -102,7 +105,7 @@ bool Render::backCulling(const glm::vec3& face_norm,const glm::vec3& dir) const 
 void Render::pipelineBegin(){
 
     if(is_init_==false){
-        std::cout<<"Fail: didn't use `pipelineInit` to initialize.\n";
+        std::cerr<<"pipelineBegin: didn't use `pipelineInit` to initialize.\n";
         return;
     }
     // if camera is changed, need to update view
@@ -112,11 +115,12 @@ void Render::pipelineBegin(){
     // shader might need these to calculate color:
     sdptr_->bindCamera(std::make_shared<Camera>(camera_));          
     sdptr_->bindLights(scene_.getLights());
-    auto& asinstances=scene_.getAllInstances();
 
+    // put each instance into the pipeline. TODO: frustrum clipping~
+    auto& asinstances=scene_.getAllInstances();
     for(auto& ins:asinstances){
         auto& obj=ins.blas_->object_;
-        glm::mat4 mat_model=ins.modle_;       
+        auto& mat_model=ins.modle_;       
         auto otype=obj->getPrimitiveType();
         auto& objvertices=obj->getVertices();
         auto& objindices=obj->getIndices();
@@ -124,7 +128,7 @@ void Render::pipelineBegin(){
         auto& objmtls=obj->getMtls();
         auto& objmtlidx=obj->getMtlIdx();
 
-        // calculate all the matrix operations and send to shader
+        // init shader for the current instance
         glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
         glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
         sdptr_->bindMVP(&mvp);
@@ -132,10 +136,6 @@ void Render::pipelineBegin(){
         sdptr_->bindNormalMat(&normal_mat);
         sdptr_->bindModelMat(&mat_model);
         sdptr_->setShaderType(ins.shader_);
-        
-
-        glm::vec4 npos;
-        int ver_num=int(otype);
         sdptr_->setPrimitiveType(otype);
 
         /*----- Geometry phrase --------*/
@@ -213,13 +213,159 @@ void Render::pipelineBegin(){
         timer_.stop("120.Rasterize phrase");
 #endif
 
+    }// end of for-asinstances
+
+    if(setting_.show_tlas){
+        showTLAS();
+    }
+}
+
+void Render::showTLAS(){
+    auto&tlas=scene_.getTLAS();
+    auto&tlas_tree=(*tlas.tree_);
+    if(tlas_tree.size()){
+        traverseBVHandDraw(tlas_tree,0,true);
+    }
+}
+
+void Render::showBLAS(const ASInstance& inst){
+    auto&blas=inst.blas_;
+    auto&blas_tree=*(blas->nodes_);
+    if(blas_tree.size()){
+        traverseBVHandDraw(blas_tree,0,false,inst.modle_);
+    }
+}
+
+/**
+ * @brief traverse through BVH from top to bottom and draw each node's AABB.
+ * 
+ * @param tree : the tree structure
+ * @param nodeIdx : current node
+ * @param is_TLAS : to support both TLAS and BLAS traversal, this on-off differentiates these two cases.
+ * @param model   : specify the model matrix, which is necessary for BLAS without knowing its world position
+ */
+void Render::traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model){
+    if(nodeIdx>=tree.size()){
+        std::cerr<<"Render::traverseBVHandDraw:nodeIdx>=tree.size()!\n";
+        exit(-1);
+    }
+    auto& node=tree[nodeIdx];
+
+    glm::vec3 bmin=node.bbox.min;
+    glm::vec3 bmax=node.bbox.max;
+    glm::vec3 bcenter=(bmin+bmax)*0.5f;
+    std::vector<glm::vec3> bboxpoints={bmin,{bmin.x,bmin.y,bmax.z},{bmin.x,bmax.y,bmax.z},{bmin.x,bmax.y,bmin.z},
+                        {bmax.x,bmin.y,bmin.z},{bmax.x,bmin.y,bmax.z},                 bmax,{bmax.x,bmax.y,bmin.z}};
+    // transform p*v=>/z=>viewport
+    bool valid[12]={true};
+    glm::mat4 trans=is_TLAS?(mat_perspective_*mat_view_):(mat_perspective_*mat_view_*model);
+
+    bcenter=trans*glm::vec4(bcenter,1.0f);
+
+    for(int i=0;i<bboxpoints.size();++i){
+        auto& p=bboxpoints[i];
+        glm::vec4 pos=trans*glm::vec4(p,1.0f);
+        int bias[3]={0};
+        for(int t=0;t<3;++t){
+            if(pos[t]<bias[t]) pos[t]-=1e-3;
+            else pos[t]+=1e-3;
+        }
+
+        if(pos.w>1e-6 ){  
+            pos/=pos.w;
+            pos=mat_viewport_*pos;
+            p=glm::vec3(pos);
+            valid[i]=true;
+        }
+        else{
+            valid[i]=false;
+        }
+    }
+    // draw 12 lines
+    glm::vec4 color=is_TLAS?glm::vec4(255.0):glm::vec4(0.0,100.0,100.0,1.0);
+    for(int i=0;i<4;++i){
+        if(valid[i]&&valid[(i+1)%4])
+            drawLine3d(bboxpoints[i],bboxpoints[(i+1)%4],color);
+        if(valid[i]&&valid[i+4])
+            drawLine3d(bboxpoints[i],bboxpoints[i+4],color);
+        if(valid[i+4]&&valid[(i+1)%4+4])
+            drawLine3d(bboxpoints[i+4],bboxpoints[(i+1)%4+4],color);
     }
 
+    // dive into blas if possible and required
+    if(is_TLAS&&node.left==-1&&node.right==-1){
+        if(setting_.show_blas){
+            auto&tlas=scene_.getTLAS();
+            uint32_t idx=node.prmitive_start;
+            showBLAS(tlas.all_instances_[idx]);
+        }
+    }
+    
+    if(node.left!=-1)
+        traverseBVHandDraw(tree,node.left,is_TLAS,model);
+    if(node.right!=-1)
+        traverseBVHandDraw(tree,node.right,is_TLAS,model);
+}
+
+// drawLine in screen space
+void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
+    // naive clip: create a aabb2d to intersect with the screen 
+    AABB2d aabb;
+    aabb.containLine(glm::vec2(t1),glm::vec2(t2));
+    aabb.clipAABB(box_);
+
+    // make sure: x-axis is less steep and t1 is the left point
+    bool swap_flag=0;
+    if(std::abs(t1.x-t2.x)<std::abs(t1.y-t2.y)){
+        std::swap(t1.x,t1.y);
+        std::swap(t2.x,t2.y);
+        swap_flag=1;
+    }
+    if(t1.x>t2.x){
+        std::swap(t1,t2);
+    }
+    bool positive_flag=1;
+    int dx=t2.x-t1.x;
+    int dy=t2.y-t1.y;
+    if(dy<0){
+        dy=-dy;
+        positive_flag=0;
+    }
+
+    int delta2=dy*2;
+    int error2=0;
+    int y=t1.y;
+    for(int x=t1.x;x<=t2.x;++x){
+        float dt=(x-t1.x)/float(dx);
+        float curz=(1-dt)*t1.z+dt*(t2.z);
+        if(swap_flag){
+            if(x<=aabb.max.y&&x>=aabb.min.y&&y<=aabb.max.x&&y>=aabb.min.x){
+                float curdepth=zbuffer_.getDepth(y,x);
+                if(curz<=curdepth+10*srender::EPSILON){
+                    colorbuffer_.setPixel(y,x,color);
+                    zbuffer_.setDepth(y,x,curz);
+                }
+            }
+        }else{
+            if(y<=aabb.max.y&&y>=aabb.min.y&&x<=aabb.max.x&&x>=aabb.min.x){
+                float curdepth=zbuffer_.getDepth(x,y);
+                if(curz<=curdepth+10*srender::EPSILON){
+                    colorbuffer_.setPixel(x,y,color);
+                    zbuffer_.setDepth(x,y,curz);
+                }
+            }
+        }
+        error2+=delta2;
+        if(error2>dx){
+            y+=positive_flag?1:-1;
+            error2-=dx*2;
+        }
+    }
 }
 
 
 namespace ClipTools{
-// 定义裁剪平面的位标志
+// Defines a bit flag for the clipping plane
 enum ClipPlaneBit {
     CLIP_LEFT   = 1 << 0, // 000001
     CLIP_RIGHT  = 1 << 1, // 000010

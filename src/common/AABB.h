@@ -8,6 +8,14 @@ struct AABB2d{
     glm::vec2 max;
     bool valid=true;
     AABB2d():min(srender::INF,srender::INF),max(-srender::INF,-srender::INF){}
+
+    // contain a line in a conservative way: represent point in discrete integers(corresponding to pixels in screen)
+    void containLine(const glm::vec2& p1,const glm::vec2& p2){
+        min.x=(int)std::min(p1.x,p2.x)-1;
+        min.y=(int)std::min(p1.y,p2.y)-1;
+        max.x=(int)std::max(p1.x,p2.x)+1;
+        max.y=(int)std::max(p1.y,p2.y)+1;
+    }
     
     void containTriangel(const glm::vec2& p1,const glm::vec2& p2,const glm::vec2& p3){
         min.x=std::min(std::min(p1.x,p2.x),p3.x);
@@ -65,8 +73,20 @@ struct AABB3d{
     }
 
     AABB3d transform(const glm::mat4& m){
-        min=m*glm::vec4(min,1);
-        max=m*glm::vec4(max,1);
+        std::vector<glm::vec3> bboxpoints={min,{min.x,min.y,max.z},{min.x,max.y,max.z},{min.x,max.y,min.z},
+                           {max.x,min.y,min.z},{max.x,min.y,max.z},                 max,{max.x,max.y,min.z}};
+        min=glm::vec3(srender::INF,srender::INF,srender::INF);
+        max=glm::vec3(-srender::INF,-srender::INF,-srender::INF);
+        for(auto& p:bboxpoints){
+            p=m*glm::vec4(p,1);
+            min.x=std::min(min.x,p.x);
+            min.y=std::min(min.y,p.y);
+            min.z=std::min(min.z,p.z);
+            
+            max.x=std::max(max.x,p.x);
+            max.y=std::max(max.y,p.y);
+            max.z=std::max(max.z,p.z);
+        }
         return *this;
     }
     

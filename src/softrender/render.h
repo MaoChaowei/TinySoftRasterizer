@@ -22,6 +22,8 @@ enum class ClipPlane {
 
 struct RenderSetting{
     ShaderSwitch shader_switch;
+    bool show_tlas=false;
+    bool show_blas=false;
 };
 
 class Render{
@@ -75,6 +77,8 @@ public:
     void moveCamera();
 
     // DEBUG
+    void showTLAS();
+    void showBLAS(const ASInstance& inst);
     void loadDemoScene(std::string name,ShaderType shader);
 
     void printMatrix(const glm::mat4& mat,const std::string name)const{
@@ -94,7 +98,9 @@ public:
 private:
     // rasterize
     void drawLine(glm::vec2 t1,glm::vec2 t2);
+    void drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color=glm::vec4(255));
     void drawTriangle();
+    void traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model=glm::mat4(1.0));
 
     // update members accrordingly after camera's update
     void afterCameraUpdate();
