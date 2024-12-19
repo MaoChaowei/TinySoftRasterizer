@@ -115,24 +115,6 @@ private:
 
 };
 
-// class Point:public ObjectDesc{
-// public:
-//     Point(){
-//         type_=PrimitiveType::POINT;
-//     }
-// //TODO
-//     // void initObject(const tinyobj::shape_t& info,const tinyobj::attrib_t& attrib,bool flip_normals) override;
-
-//     void clear() override{}
-
-//     // // for debug use
-//     // void setPointDemo();
-//     // void printPointInfo() const;
-
-// private:
-//     // the total number of lines, hence vertices num is line_num_+1
-//     unsigned long long point_num_;   
-// };
 
 
 // a single read from .obj results in a `ObjLoader`

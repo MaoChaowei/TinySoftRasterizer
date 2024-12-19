@@ -13,8 +13,8 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     // init my render
     Render render;
-    // render.loadDemoScene("Bunny",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
-    render.loadDemoScene("Boxes",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
+    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);//ShaderType::BlinnPhone|ShaderType::ORDER
+    // render.loadDemoScene("Boxes",ShaderType::Frame);//ShaderType::BlinnPhone|ShaderType::ORDER
     
     render.setViewport(1600,16.0/9.0,60.0);
     auto& camera=render.getCamera();
@@ -23,7 +23,6 @@ int main(void) {
 
     auto& colorbuffer=render.getColorBuffer();
     auto& scene=render.getScene();
-    auto objs=scene.getObjects();
 
     int width=camera.getImageWidth();
     int height=camera.getImageHeight();
@@ -90,14 +89,3 @@ int main(void) {
     glfwTerminate();    
     return 0;
 }
-
-
-    /*
-    Scene scene(std::string("assets/model/line_dot.obj"));// cornell_box
-    if(0){
-        int t=0;
-        for(auto& p:scene.getObjects()){
-            std::cout<<"---------------Obj [ "<<t++<<" ] INFO---------------"<<std::endl;
-            p->printInfo();
-        }
-    }*/

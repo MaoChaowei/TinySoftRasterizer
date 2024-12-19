@@ -7,17 +7,6 @@
 #include"as.h"
 #include<unordered_map>
 
-struct ObjectInstance{
-    std::shared_ptr<ObjectDesc> object;
-    glm::mat4 model;
-    ShaderType shader;
-    ObjectInstance(std::shared_ptr<ObjectDesc> ptr,const glm::mat4& m, ShaderType& s){
-        object=std::move(ptr);
-        model=m;
-        shader=s;
-    }
-};
-
 
 class Scene{
 public:
@@ -26,12 +15,12 @@ public:
         all_lights_.emplace_back(light);
     }
 
-    void addScene(std::string filename,const glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
-        std::shared_ptr<ObjectDesc> obj;
+    void addObjInstance(std::string filename, glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
+        // create BLAS for obj if it hasn't been built.
         if(blas_map_.find(filename)==blas_map_.end()){
             // read from objfile
             ObjLoader objloader(filename,flipn,backculling);
-            obj=std::move(objloader.getObjects());
+            std::shared_ptr<ObjectDesc> obj=std::move(objloader.getObjects());
             // create blas
             blas_map_[filename]=std::make_shared<BLAS>(obj,leaf_num_);
 
@@ -39,20 +28,16 @@ public:
             std::cout<<"Current vertex num: "<<vertex_num_<<std::endl;
             std::cout<<"Current face num: "<<face_num_<<std::endl;
         }
-        else{
-            obj=blas_map_[filename]->object_;
-        }
-        // update all_objects and asinstance
-        all_objects_.emplace_back( ObjectInstance(obj,model,shader) );
-        // asinstance_.emplace_back(std::make_shared<ASInstance>(blas_map_[filename],model));
+        // create ASInstance for obj
+        all_instances_.emplace_back( ASInstance(blas_map_[filename],model,shader) );
     }
 
     void buildTLAS(){
         // TODO: building TLAS
     }
 
-    inline const  std::vector<ObjectInstance>& getObjects()const{
-        return all_objects_;
+    inline const  std::vector<ASInstance>& getAllInstances()const{
+        return all_instances_;
     }
 
     inline const std::vector<std::shared_ptr<Light>>& getLights()const{
@@ -61,7 +46,7 @@ public:
 
     inline void clearScene(){
         all_lights_.clear();
-        all_objects_.clear();
+        all_instances_.clear();
         vertex_num_=0;
         face_num_=0;
     }
@@ -69,18 +54,15 @@ public:
     
 private:
     
-    // objects
-    std::vector<ObjectInstance> all_objects_;
+    // AS for objects
+    std::unordered_map<std::string,std::shared_ptr<BLAS> > blas_map_;
+    std::vector<ASInstance> all_instances_;         // AS->BLAS->objectdesc
+    int leaf_num_=4;
     int vertex_num_;
     int face_num_;
 
     // lights
     std::vector<std::shared_ptr<Light>> all_lights_;
-    
-    // AS
-    std::unordered_map<std::string,std::shared_ptr<BLAS> > blas_map_;
-    int leaf_num_=4;
-    std::vector<std::shared_ptr<ASInstance>> asinstance_;
 
 };
 

@@ -7,8 +7,8 @@ void Render::updateMatrix(){
     mat_viewport_=camera_.getViewportMatrix();
 }
 
-void Render::addScene(std::string filename,const glm::mat4& model,ShaderType shader,bool flipn,bool backculling){
-    scene_.addScene(filename,model,shader,flipn,backculling); 
+void Render::addObjInstance(std::string filename,glm::mat4& model,ShaderType shader,bool flipn,bool backculling){
+    scene_.addObjInstance(filename,model,shader,flipn,backculling); 
 }
 
 void Render::pipelineInit(const RenderSetting & setting){
@@ -112,17 +112,17 @@ void Render::pipelineBegin(){
     // shader might need these to calculate color:
     sdptr_->bindCamera(std::make_shared<Camera>(camera_));          
     sdptr_->bindLights(scene_.getLights());
+    auto& asinstances=scene_.getAllInstances();
 
-    auto& objects=scene_.getObjects();
-    for(auto& obj:objects){
-
-        glm::mat4 mat_model=obj.model;       
-        auto otype=obj.object->getPrimitiveType();
-        auto& objvertices=obj.object->getVertices();
-        auto& objindices=obj.object->getIndices();
-        auto& objfacenorms=obj.object->getFaceNorms();
-        auto& objmtls=obj.object->getMtls();
-        auto& objmtlidx=obj.object->getMtlIdx();
+    for(auto& ins:asinstances){
+        auto& obj=ins.blas_->object_;
+        glm::mat4 mat_model=ins.modle_;       
+        auto otype=obj->getPrimitiveType();
+        auto& objvertices=obj->getVertices();
+        auto& objindices=obj->getIndices();
+        auto& objfacenorms=obj->getFaceNorms();
+        auto& objmtls=obj->getMtls();
+        auto& objmtlidx=obj->getMtlIdx();
 
         // calculate all the matrix operations and send to shader
         glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
@@ -131,7 +131,7 @@ void Render::pipelineBegin(){
         sdptr_->bindViewport(&mat_viewport_);
         sdptr_->bindNormalMat(&normal_mat);
         sdptr_->bindModelMat(&mat_model);
-        sdptr_->setShaderType(obj.shader);
+        sdptr_->setShaderType(ins.shader_);
         
 
         glm::vec4 npos;
@@ -178,7 +178,7 @@ void Render::pipelineBegin(){
                 sdptr_->vertex2Screen(*v3);
 
                 // back culling
-                if(sdptr_->checkFlag(ShaderSwitch::BackCulling)&&obj.object->isBackCulling()){
+                if(sdptr_->checkFlag(ShaderSwitch::BackCulling)&&obj->isBackCulling()){
                     glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
                     glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
                     if(backCulling(norm,dir)==true){

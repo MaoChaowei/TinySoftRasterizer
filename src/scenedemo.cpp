@@ -17,40 +17,36 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     if (name == "Boxes")
     {
         {
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{0, 0, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"),model_matrix ,shader,true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,shader,true);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{100, 100, -300};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(30));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"), model_matrix,shader,true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"), model_matrix,shader,true);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{-100, -100, -300};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(30));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"), model_matrix,shader,true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"), model_matrix,shader,true);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 lightpos{0, 0, 0};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"),model_matrix,ShaderType::Light, true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix,ShaderType::Light, true);
 
             PointLight pt;
             pt.pos_ = lightpos;
@@ -65,32 +61,28 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     else if (name == "Bunny")
     {
         {
-            
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{0, -100, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(20));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/Bunny.obj"), model_matrix,shader,false);
+            addObjInstance(std::string("assets/model/Bunny.obj"), model_matrix,shader,false);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{0, -100, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(120));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
+            addObjInstance(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 lightpos{0, 0, 0};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
 
             PointLight pt;
             pt.pos_ = lightpos;
@@ -105,22 +97,20 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     else if (name == "CornellBox")
     {
         {
-            auto objs = scene_.getObjects();
             glm::vec3 model_position{200, -100, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.5));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cornell_box/cornell_box.obj"), model_matrix,shader,false);
+            addObjInstance(std::string("assets/model/cornell_box/cornell_box.obj"), model_matrix,shader,false);
         }
         {
-            auto objs = scene_.getObjects();
             glm::vec3 lightpos{0, 0, 0};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addScene(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
 
             PointLight pt;
             pt.pos_ = lightpos;
