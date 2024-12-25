@@ -12,18 +12,21 @@ void Render::addObjInstance(std::string filename,glm::mat4& model,ShaderType sha
 }
 
 void Render::pipelineInit(const RenderSetting & setting){
-    // init transformation
+    // 0. init transformation
     updateMatrix();
     setting_=setting;
 
-    // init TLAS
+    // 1. init scene as
     scene_.buildTLAS();
 
-    // init shader
+    // 2. init shader
     sdptr_=std::make_shared<Shader>();
-    sdptr_->setShaderSwitch(setting.shader_switch);
     sdptr_->setFrustum(camera_.getNear(),camera_.getFar());
     sdptr_->bindTimer(&timer_);
+
+    // 3. init rastertizer
+    tri_scanliner_=std::make_shared<PerTriangleScanLiner>();
+    tri_scanliner_->initialize(box_,colorbuffer_,zbuffer_,sdptr_);
 
     is_init_=true;
 }
@@ -54,9 +57,9 @@ void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
     int y=t1.y;
     for(int x=t1.x;x<=t2.x;++x){
         if(swap_flag){
-            colorbuffer_.setPixel(y,x,color);
+            colorbuffer_->setPixel(y,x,color);
         }else{
-            colorbuffer_.setPixel(x,y,color);
+            colorbuffer_->setPixel(x,y,color);
         }
         error2+=delta2;
         if(error2>dx){
@@ -68,7 +71,7 @@ void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
 
 
 // go through all the pixels inside the AABB, that means I didn't use coherence here
-void Render::drawTriangle(){
+void Render::drawTriangleNaive(){
     AABB2d aabb;
     glm::vec3 t[3];
     for(int i=0;i<3;++i)
@@ -87,13 +90,51 @@ void Render::drawTriangle(){
     else{
         for(int y=aabb.min.y;y<=aabb.max.y;++y){
             for(int x=aabb.min.x;x<=aabb.max.x;++x){
-                bool passZtest=sdptr_->fragmentShader(x,y,zbuffer_.getDepth(x,y));
-                if(passZtest){
-                    colorbuffer_.setPixel(x,y,sdptr_->getColor());
-                    zbuffer_.setDepth(x,y,sdptr_->getDepth());
+                if(depthTest(x,y)){
+                    sdptr_->fragmentShader(x,y);
+                    colorbuffer_->setPixel(x,y,sdptr_->getColor());
+                    zbuffer_->setDepth(x,y,sdptr_->getDepth());
                 }
             }
         }
+    }
+}
+
+bool Render::depthTest(uint32_t x,uint32_t y){
+    float depth=sdptr_->fragmentDepth(x,y);
+    if(setting_.hzb_flag==true){
+        exit(-1);
+    }
+    else{
+        if(depth<zbuffer_->getDepth(x,y))
+            return true;
+        
+        return false;
+    }
+}
+
+void Render::drawTriangleScanLine(){
+    if(ShaderType::Frame==sdptr_->getType()){
+        AABB2d aabb;
+        glm::vec3 t[3];
+        for(int i=0;i<3;++i)
+            t[i]=sdptr_->getScreenPos(i);
+        
+        aabb.containTriangel(t[0],t[1],t[2]);
+        aabb.clipAABB(box_);
+        if(!aabb.valid)
+            return;
+
+        for(int i=0;i<3;++i){
+            drawLine(t[i],t[(i+1)%3]);
+        }
+    }
+    else{
+        auto v0=sdptr_->getVertices(0);
+        auto v1=sdptr_->getVertices(1);
+        auto v2=sdptr_->getVertices(2);
+        std::vector<const Vertex*> vs={v0,v1,v2};
+        tri_scanliner_->scanConvert(vs);
     }
 }
 
@@ -178,7 +219,7 @@ void Render::pipelineBegin(){
                 sdptr_->vertex2Screen(*v3);
 
                 // back culling
-                if(sdptr_->checkFlag(ShaderSwitch::BackCulling)&&obj->isBackCulling()){
+                if(setting_.back_culling&&obj->isBackCulling()){
                     glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
                     glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
                     if(backCulling(norm,dir)==true){
@@ -200,7 +241,10 @@ void Render::pipelineBegin(){
                         // drawLine();
                         break;
                     case PrimitiveType::MESH:
-                        drawTriangle();
+                        if(setting_.scan_convert)
+                            drawTriangleScanLine();
+                        else
+                            drawTriangleNaive();
                         break;
                     default:
                         break;
@@ -217,7 +261,14 @@ void Render::pipelineBegin(){
 
     if(setting_.show_tlas){
         showTLAS();
+    }else if(setting_.show_blas){
+        for(auto& ins:asinstances)
+            showBLAS(ins);
     }
+}
+
+void Render::pipelineHZBtraverseBVH(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS){
+
 }
 
 void Render::showTLAS(){
@@ -283,13 +334,15 @@ void Render::traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeId
     }
     // draw 12 lines
     glm::vec4 color=is_TLAS?glm::vec4(255.0):glm::vec4(0.0,100.0,100.0,1.0);
-    for(int i=0;i<4;++i){
-        if(valid[i]&&valid[(i+1)%4])
-            drawLine3d(bboxpoints[i],bboxpoints[(i+1)%4],color);
-        if(valid[i]&&valid[i+4])
-            drawLine3d(bboxpoints[i],bboxpoints[i+4],color);
-        if(valid[i+4]&&valid[(i+1)%4+4])
-            drawLine3d(bboxpoints[i+4],bboxpoints[(i+1)%4+4],color);
+    if(setting_.show_tlas&&is_TLAS||setting_.show_blas&&!is_TLAS){
+        for(int i=0;i<4;++i){
+            if(valid[i]&&valid[(i+1)%4])
+                drawLine3d(bboxpoints[i],bboxpoints[(i+1)%4],color);
+            if(valid[i]&&valid[i+4])
+                drawLine3d(bboxpoints[i],bboxpoints[i+4],color);
+            if(valid[i+4]&&valid[(i+1)%4+4])
+                drawLine3d(bboxpoints[i+4],bboxpoints[(i+1)%4+4],color);
+        }
     }
 
     // dive into blas if possible and required
@@ -340,18 +393,18 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
         float curz=(1-dt)*t1.z+dt*(t2.z);
         if(swap_flag){
             if(x<=aabb.max.y&&x>=aabb.min.y&&y<=aabb.max.x&&y>=aabb.min.x){
-                float curdepth=zbuffer_.getDepth(y,x);
+                float curdepth=zbuffer_->getDepth(y,x);
                 if(curz<=curdepth+10*srender::EPSILON){
-                    colorbuffer_.setPixel(y,x,color);
-                    zbuffer_.setDepth(y,x,curz);
+                    colorbuffer_->setPixel(y,x,color);
+                    zbuffer_->setDepth(y,x,curz);
                 }
             }
         }else{
             if(y<=aabb.max.y&&y>=aabb.min.y&&x<=aabb.max.x&&x>=aabb.min.x){
-                float curdepth=zbuffer_.getDepth(x,y);
+                float curdepth=zbuffer_->getDepth(x,y);
                 if(curz<=curdepth+10*srender::EPSILON){
-                    colorbuffer_.setPixel(x,y,color);
-                    zbuffer_.setDepth(x,y,curz);
+                    colorbuffer_->setPixel(x,y,color);
+                    zbuffer_->setDepth(x,y,curz);
                 }
             }
         }
@@ -363,193 +416,35 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     }
 }
 
+// drawPoint in screen space with specified radius
+void Render::drawPoint(const glm::vec2 p, float radius,const glm::vec4 color){
+    int center_x = static_cast<int>(std::round(p.x));
+    int center_y = static_cast<int>(std::round(p.y));
 
-namespace ClipTools{
-// Defines a bit flag for the clipping plane
-enum ClipPlaneBit {
-    CLIP_LEFT   = 1 << 0, // 000001
-    CLIP_RIGHT  = 1 << 1, // 000010
-    CLIP_BOTTOM = 1 << 2, // 000100
-    CLIP_TOP    = 1 << 3, // 001000
-    CLIP_NEAR   = 1 << 4, // 010000
-    CLIP_FAR    = 1 << 5  // 100000
-};
+    float radius_sq = radius * radius;
+    glm::vec2 minp=p-radius;
+    glm::vec2 maxp=p+radius;
+    AABB2d box;
+    box.containLine(minp,maxp);
+    box.clipAABB(box_);
 
-int computeOutcode(const glm::vec4& pos) {
-    int outcode = 0;
-    if (pos.x < -pos.w) outcode |= CLIP_LEFT;
-    if (pos.x > pos.w)  outcode |= CLIP_RIGHT;
-    if (pos.y < -pos.w) outcode |= CLIP_BOTTOM;
-    if (pos.y > pos.w)  outcode |= CLIP_TOP;
-    if (pos.z < -pos.w) outcode |= CLIP_NEAR;
-    if (pos.z > pos.w)  outcode |= CLIP_FAR;
-    return outcode;
-}
+    for(int y = box.min.y; y <= box.max.y; ++y){
+        for(int x = box.min.x; x <= box.max.x; ++x){
 
-bool isInside(const Vertex& vertex, ClipPlane plane) {
-    const glm::vec4& pos = vertex.c_pos_;
-    switch (plane) {
-        case ClipPlane::Left:
-            return pos.x >= -pos.w;
-        case ClipPlane::Right:
-            return pos.x <= pos.w;
-        case ClipPlane::Bottom:
-            return pos.y >= -pos.w;
-        case ClipPlane::Top:
-            return pos.y <= pos.w;
-        case ClipPlane::Near:
-            return pos.z >= -pos.w;
-        case ClipPlane::Far:
-            return pos.z <= pos.w;
-        default:
-            return false;
-    }
-}
+            float dx = static_cast<float>(x) - p.x;
+            float dy = static_cast<float>(y) - p.y;
+            float distance_sq = dx * dx + dy * dy;
 
-Vertex computeIntersection(const Vertex& v1, const Vertex& v2, ClipPlane plane) {
-    float A, B, C, D;
-    switch (plane) {
-        case ClipPlane::Left:
-            A = 1.0f; B = 0.0f; C = 0.0f; D = 1.0f;
-            break;
-        case ClipPlane::Right:
-            A = -1.0f; B = 0.0f; C = 0.0f; D = 1.0f;
-            break;
-        case ClipPlane::Bottom:
-            A = 0.0f; B = 1.0f; C = 0.0f; D = 1.0f;
-            break;
-        case ClipPlane::Top:
-            A = 0.0f; B = -1.0f; C = 0.0f; D = 1.0f;
-            break;
-        case ClipPlane::Near:
-            A = 0.0f; B = 0.0f; C = 1.0f; D = 1.0f;
-            break;
-        case ClipPlane::Far:
-            A = 0.0f; B = 0.0f; C = -1.0f; D = 1.0f;
-            break;
-        default:
-            A = B = C = D = 0.0f;
-    }
-
-    float startVal = A * v1.c_pos_.x + B * v1.c_pos_.y + C * v1.c_pos_.z + D * v1.c_pos_.w;
-    float endVal = A * v2.c_pos_.x + B * v2.c_pos_.y + C * v2.c_pos_.z + D * v2.c_pos_.w;
-
-    // denom check
-    if (fabs(startVal - endVal) < 1e-6f) {
-        return v1; 
-    }
-
-    float t = startVal / (startVal - endVal);
-    t = glm::clamp(t, 0.0f, 1.0f);
-    return v1.vertexInterp(v2, t);
-}
-}
-
-
-void Render::clipWithPlane(ClipPlane plane, std::vector<Vertex>& in, std::vector<Vertex>& out) {
-    if (in.empty()) return;
-
-    std::vector<Vertex> result;
-    size_t vnum = in.size();
-
-    for (size_t i = 0; i < vnum; ++i) {
-        size_t next = (i + 1) % vnum;
-        const Vertex& current = in[i];
-        const Vertex& nextPos = in[next];
-
-        bool currentInside = ClipTools::isInside(current, plane);
-        bool nextInside = ClipTools::isInside(nextPos, plane);
-
-        if (currentInside && nextInside) {
-            // Case 1: Both inside
-            result.push_back(nextPos);
-        }
-        else if (currentInside && !nextInside) {
-            // Case 2: Current inside, next outside
-            Vertex intersectVertex = ClipTools::computeIntersection(current, nextPos, plane);
-            result.push_back(intersectVertex);
-        }
-        else if (!currentInside && nextInside) {
-            // Case 3: Current outside, next inside
-            Vertex intersectVertex = ClipTools::computeIntersection(current, nextPos, plane);
-            result.push_back(intersectVertex);
-            result.push_back(nextPos);
-        }
-        // Case 4: Both outside - do nothing
-    }
-
-    out = std::move(result);
-}
-
-// return the number of triangles after clipping
-int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>& out) {
-    if (vertices.size() != 3) {
-        return 0;
-    }
-
-    // get outcode
-    int outcode1 = ClipTools::computeOutcode(vertices[0].c_pos_);
-    int outcode2 = ClipTools::computeOutcode(vertices[1].c_pos_);
-    int outcode3 = ClipTools::computeOutcode(vertices[2].c_pos_);
-
-    int outcode_OR = outcode1 | outcode2 | outcode3;
-    int outcode_AND = outcode1 & outcode2 & outcode3;
-
-    // rapid reject
-    if (outcode_AND != 0) {
-        return 0; // the triangle is totally outside
-    }
-
-    // rapid accept
-    if (outcode_OR == 0) {
-        out = vertices;
-        return 1;
-    }
-
-    // clip
-    std::vector<Vertex> input = vertices;
-    std::vector<Vertex> temp;
-
-    // define order
-    std::vector<ClipPlane> planes = {
-        ClipPlane::Left,
-        ClipPlane::Right,
-        ClipPlane::Bottom,
-        ClipPlane::Top,
-        ClipPlane::Near,
-        ClipPlane::Far
-    };
-
-    for (const auto& plane : planes) {
-        temp.clear();
-        clipWithPlane(plane, input, temp);
-        input = std::move(temp);
-
-        if (input.empty()) {
-            out.clear();
-            return 0;
+            if(distance_sq <= radius_sq){
+                colorbuffer_->setPixel(x, y, color);
+            }
         }
     }
-
-
-    int vnum = input.size();
-    out.clear();
-    if (vnum < 3) return 0;
-
-    for (int i = 1; i < vnum - 1; ++i) {
-        out.push_back(input[0]);
-        out.push_back(input[i]);
-        out.push_back(input[i + 1]);
-    }
-
-    return out.size() / 3;
 }
-
-
 
 void Render::afterCameraUpdate(){
-    colorbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
-    zbuffer_.reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
+    colorbuffer_->reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
+    zbuffer_->reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
     updateMatrix();
 
     box_.min={0,0};
@@ -574,3 +469,141 @@ void Render::moveCamera(){
 void Render::handleMouseInput(double xoffset, double yoffset) {
     camera_.processMouseMovement(static_cast<float>(xoffset), static_cast<float>(yoffset));
 }
+
+
+/*
+
+void Render::scanLineConvert(std::vector<const Vertex*> vertices,std::vector<FragmentHolder>& edge_points){
+    assert(vertices.size()==3);
+
+    std::sort(vertices.begin(),vertices.end(),[this](const Vertex*& v1,const Vertex*& v2){
+        return (int)v1->s_pos_.y<(int)v2->s_pos_.y;
+    });
+
+    auto v1=vertices[0];
+    auto v2=vertices[1];
+    auto v3=vertices[2];
+    int y1=(int)v1->s_pos_.y;
+    int y2=(int)v2->s_pos_.y;
+    int y3=(int)v3->s_pos_.y;
+    
+    // each endpoint was added only once
+    if(y1<y2&&y2<y3){
+        rasterizeEdge(v1,v2,true,false,edge_points);
+        rasterizeEdge(v2,v3,true,true,edge_points);
+        rasterizeEdge(v3,v1,true,true,edge_points);
+    }
+    else if(y1==y2&&y1==y3){
+        return;
+    }
+    else if(y1==y2){
+        rasterizeEdge(v2,v3,true,true,edge_points);
+        rasterizeEdge(v3,v1,true,true,edge_points);
+    }
+    else if(y2==y3){
+        rasterizeEdge(v1,v2,true,true,edge_points);
+        rasterizeEdge(v3,v1,true,true,edge_points);
+    }
+
+    // sort by Y as first order and X as second order
+    std::sort(edge_points.begin(),edge_points.end(),[](FragmentHolder& v1,FragmentHolder& v2){
+        if(v1.screenY_!=v2.screenY_)
+            return v1.screenY_<v2.screenY_;
+        return v1.screenX_<v2.screenX_;
+    });
+
+}
+// rasterize an edge of triangle for scan line algotirhm, and interplote attributes of edge points and reserve in a vector
+// note that each scan line should intersect with the primitive at even points. so I rasterize by 'y'
+void Render::rasterizeEdge(const Vertex* v1,const Vertex* v2,bool in1,bool in2,std::vector<FragmentHolder>& edge_points){
+    if(v1->s_pos_.y>v2->s_pos_.y){ 
+        std::swap(v1,v2);
+        std::swap(in1,in2);
+    }
+    float miny = v1->s_pos_.y;
+    float maxy = v2->s_pos_.y;
+    
+    float dy=maxy-miny;
+    if(dy<srender::EPSILON) return; // don't rasterize horizental edge
+    float dx=v2->s_pos_.x-v1->s_pos_.x;
+    float dx_dy=dx/dy;
+
+
+    int minx=v1->s_pos_.x;
+    FragmentHolder st={(int)v1->s_pos_.x,(int) v1->s_pos_.y,v1->s_pos_.z,v1->color_,v1->uv_,v1->w_pos_,v1->c_pos_,v1->w_norm_};
+    FragmentHolder ed={(int)v2->s_pos_.x,(int) v2->s_pos_.y,v2->s_pos_.z,v2->color_,v2->uv_,v2->w_pos_,v2->c_pos_,v2->w_norm_};
+
+    // delete endpoint if necessary
+
+    float k=(ed.screenY_==st.screenY_)?1:1.0/(ed.screenY_-st.screenY_);
+    FragmentHolder fdelta(st,ed);
+
+    for(int y=miny+(!in1);y<=maxy-(!in2);++y){
+        float t=(y-st.screenY_)*k;
+        float tmp=t/st.c_pos_.w;
+        float vt=tmp/(tmp+(1-t)/ed.c_pos_.w); // perspective correction
+        FragmentHolder curp(st+fdelta*vt);
+
+        curp.screenX_=dx_dy*(y-miny)+minx;
+        curp.screenY_=y;
+
+        edge_points.push_back(curp);
+        drawPoint(glm::vec2(curp.screenX_,curp.screenY_),2,glm::vec4(255,0,0,1));
+
+    }
+}
+// use scan-line algorithm to draw triangle
+
+void Render::drawTriangleScanLine()
+{
+    auto& v1=sdptr_->getVertices(0);
+    auto& v2=sdptr_->getVertices(1);
+    auto& v3=sdptr_->getVertices(2);
+
+    AABB2d aabb;
+    aabb.containTriangel(v1.s_pos_,v2.s_pos_,v3.s_pos_);
+    aabb.clipAABB(box_);
+    if(!aabb.valid)
+        return;
+
+    // rasterize each edge into points
+    std::vector<FragmentHolder> edge_points;
+    std::vector<const Vertex*> vertices{&v1,&v2,&v3};
+    scanLineConvert(vertices,edge_points);
+
+    // for each scanline
+    int num=edge_points.size();
+    assert(num%2==0);
+    for(int i=0;i<num-1;i+=2){
+        auto& cur=edge_points[i];
+        auto& next=edge_points[i+1];
+        assert(cur.screenY_==next.screenY_);
+        int y=cur.screenY_;
+        if(y>box_.max.y||y<box_.min.y)  
+            continue;
+
+        float k=(next.screenX_==cur.screenX_)?1:1/(next.screenX_-cur.screenX_);
+        FragmentHolder fdelta(cur,next);
+
+        for(int x=cur.screenX_;x<=next.screenX_;++x){
+            if(x>box_.max.x||x<box_.min.x)  
+                continue;
+
+            float t=(x-cur.screenX_)*k;
+            float tmp=t/cur.c_pos_.w;
+            float vt=tmp/(tmp+(1-t)/next.c_pos_.w); // perspective correction
+            FragmentHolder point(cur+fdelta*vt);
+
+            // // depth test and update z buffer
+            if(zbuffer_.zTest(x,y,point.depth_)){
+                // shader
+                sdptr_->fragmentShader(point);
+                // update color buffer
+                colorbuffer_->setPixel(x,y,sdptr_->getColor());
+            }
+        }
+    }
+    
+}
+
+*/

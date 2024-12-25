@@ -1,3 +1,4 @@
+#pragma once
 #include"common_include.h"
 
 
@@ -51,9 +52,12 @@ private:
 
 }; 
 
+// forward declair
+class HZbuffer;
 
 class DepthBuffer{
 public:
+    DepthBuffer(){};
     DepthBuffer(int width,int height){
         width_=width;
         height_=height;
@@ -92,9 +96,9 @@ public:
      */
     inline bool zTest(int x,int y,float depth){
         int idx=y*width_+x;
-        if(idx>=pixel_num_){
+        if(x<0||y<0||x>width_-1||y>height_-1){
             std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
-            exit(-1);
+            return false;
         }
 
         if(depth>zbuffer_[idx]) 
@@ -106,7 +110,7 @@ public:
 
     inline float getDepth(int x,int y){
         int idx=y*width_+x;
-        if(idx>=pixel_num_){
+        if(x<0||y<0||x>width_-1||y>height_-1){
             std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
             exit(-1);
         }
@@ -119,5 +123,6 @@ private:
     int pixel_num_;
     std::vector<float> zbuffer_;
 
+    friend class HZbuffer;
 };
  

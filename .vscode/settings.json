@@ -81,6 +81,7 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "filesystem": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "xxatomic": "cpp"
     }
 }

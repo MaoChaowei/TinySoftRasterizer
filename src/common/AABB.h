@@ -17,6 +17,7 @@ struct AABB2d{
         max.y=(int)std::max(p1.y,p2.y)+1;
     }
     
+    
     void containTriangel(const glm::vec2& p1,const glm::vec2& p2,const glm::vec2& p3){
         min.x=std::min(std::min(p1.x,p2.x),p3.x);
         min.y=std::min(std::min(p1.y,p2.y),p3.y);

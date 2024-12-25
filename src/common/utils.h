@@ -21,4 +21,6 @@ inline glm::vec3 getBaryCenter(const glm::vec2 p1, const glm::vec2 p2, const glm
 void printvec3(glm::vec3 v,std::string str);
 void lowerVec3(glm::vec3& v);
 void upperVec3(glm::vec3& v);
+
+bool isEqual(float a, float b, float eps=srender::EPSILON);
 }

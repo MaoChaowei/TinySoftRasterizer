@@ -12,7 +12,8 @@
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
 #include <glm/gtc/constants.hpp> // glm::pi
 #include<memory>
-#include"math.h"
+#include<math.h>
+#include<algorithm>
 
 // switch for time-recording
 #define TIME_RECORD

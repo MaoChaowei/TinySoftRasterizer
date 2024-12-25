@@ -19,4 +19,8 @@ void upperVec3(glm::vec3& v){
     v.z=(int)v.z+1;
 }
 
+bool isEqual(float a, float b, float eps){
+    return abs(a-b)<eps;
+}
+
 }

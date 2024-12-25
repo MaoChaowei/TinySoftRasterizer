@@ -9,9 +9,7 @@ void Camera::updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float f
 
 	up_=glm::cross(right_,front_);
 	
-	image_width_=image_width;
-	image_height_=(int)(image_width/aspect_ratio_);
-	aspect_ratio_=image_width/(float)image_height_;
+	setViewport(image_width,ratio,fov);
 
 }
 
@@ -119,11 +117,10 @@ glm::mat4 Camera::getPerspectiveMatrix()const{
 
 glm::mat4 Camera::getViewportMatrix()const{
 	glm::mat4 v(1.0f);
-	v[0][0]=image_width_/2.0;
-	v[3][0]=image_width_/2.0;
-	v[1][1]=image_height_/2.0;
-	v[3][1]=image_height_/2.0;
-
+	v[0][0]=(image_width_-1)/2.0;
+	v[3][0]=(image_width_-1)/2.0;
+	v[1][1]=(image_height_-1)/2.0;
+	v[3][1]=(image_height_-1)/2.0;
 
 	return v;
 }

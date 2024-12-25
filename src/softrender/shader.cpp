@@ -7,7 +7,6 @@
 /**
  * @brief vertex shader: convert vertex from model-space to screen-space 
  *        => x and y in [width,height], z in [-1,1];
- *        convert normals into world space
  * @param v : the vertex information holder
  */
 void Shader::vertexShader(Vertex& v ){
@@ -31,15 +30,15 @@ void Shader::vertex2Screen(Vertex& v ){
     v.s_pos_=(*viewport_)*(v.c_pos_/v.c_pos_.w);     
 }
 
-bool Shader::fragmentInterp(uint32_t x,uint32_t y,float cur_depth){
+float Shader::fragmentDepth(uint32_t x,uint32_t y){
     auto& v1=content_.v[0];
     auto& v2=content_.v[1];
     auto& v3=content_.v[2];
-    /*--------------------- Interpolation ---------------------*/
+
     glm::vec3 bary=utils::getBaryCenter(v1->s_pos_,v2->s_pos_,v3->s_pos_,glm::vec2(x,y));
     glm::vec3 correct_bary;
     if(bary.x<0||bary.y<0||bary.z<0)
-        return false;
+        return 2;
     
     // perspective correct interpolation
     for(int i=0;i<3;++i)
@@ -53,66 +52,91 @@ bool Shader::fragmentInterp(uint32_t x,uint32_t y,float cur_depth){
     content_.vbary=correct_bary;
     
     // depth-interpolation
-    content_.depth=glm::dot(glm::vec3(v1->s_pos_.z,v2->s_pos_.z,v3->s_pos_.z),correct_bary);
-    if(checkFlag(ShaderSwitch::EarlyZtest)&&cur_depth<content_.depth)
-        return false;
+    content_.depth = v1->s_pos_.z * correct_bary[0] + v2->s_pos_.z * correct_bary[1] + v3->s_pos_.z * correct_bary[2];
 
-    // normal-interpolation.Since view matrix didn't scale the space, 
-    // so I can interpolate world normals in View space~~it's the same thing as interpolating in world space
-    for(int i=0;i<3;++i)
-        content_.normal[i]=glm::dot(glm::vec3(v1->w_norm_[i],v2->w_norm_[i],v3->w_norm_[i]),correct_bary);
-    content_.normal=glm::normalize(content_.normal);
-
-    return true;
+    return content_.depth;
 }
 
-/**
- * @brief shading the fragment with properties set in `ShaderType`.
- * 
- * @param xy : refer to the position in screen-space
- * @param cur_depth : refer to the current z-buffer(x,y) so that I can finish Early-Z Test here.
- * @return if the fragment can be accepted for now, than return `true`, ortherwise return `false`.
- */
-bool Shader::fragmentShader(uint32_t x,uint32_t y,float cur_depth){
-    auto& otype=content_.primitive_type;
+void Shader::fragmentInterp(uint32_t x,uint32_t y){
+    auto& v1=content_.v[0];
+    auto& v2=content_.v[1];
+    auto& v3=content_.v[2];
 
-    if(otype==PrimitiveType::MESH){
+    // normal-interpolation.
+    if(checkInterpSign(InterpolateSignal::Normal)){
+        for(int i=0;i<3;++i)
+            content_.normal[i] = v1->w_norm_[i] * content_.vbary[0] + v2->w_norm_[i] * content_.vbary[1] + v3->w_norm_[i] * content_.vbary[2];
+        content_.normal=glm::normalize(content_.normal);
+    }
+
+    // position in world space
+    if(checkInterpSign(InterpolateSignal::FragPos_World)){
+        for(int i=0;i<3;++i)
+            content_.fragpos[i]=glm::dot(glm::vec3(v1->w_pos_[i],v2->w_pos_[i],v3->w_pos_[i]),content_.vbary);
+    }
+
+    // uv
+    if(checkInterpSign(InterpolateSignal::UV)){
+        content_.uv[0]=glm::dot(glm::vec3(v1->uv_[0],v2->uv_[0],v3->uv_[0]),content_.vbary);
+        content_.uv[1]=glm::dot(glm::vec3(v1->uv_[1],v2->uv_[1],v3->uv_[1]),content_.vbary);
+    }
+
+    // color
+    if(checkInterpSign(InterpolateSignal::Color)){
+        for(int i=0;i<4;++i)
+            content_.in_color[i] =glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
+    }
+
+}
+
+void Shader::fragmentShader(uint32_t x,uint32_t y){
+
+    assert(content_.primitive_type==PrimitiveType::MESH);
     /*--------------------- Interpolate ---------------------*/
-        bool pass=fragmentInterp(x,y,cur_depth);
-        if(pass==false)
-            return false;
+
+    fragmentInterp(x,y);
 
     /*---------------------   Shading   ---------------------*/
 
-        if  (checkShader(ShaderType::Texture)&&material_)                               
-            textureShader();
+    if(checkShader(ShaderType::Texture)&&material_)                               
+        textureShader();
 
-        else if(checkShader(ShaderType::Color))
-            colorShader();
-        
-        else if(checkShader(ShaderType::Depth))
-            depthShader();
-        
-        else if(checkShader(ShaderType::Normal))
-            normalShader();
-        
-        else if(checkShader(ShaderType::Light))
-            lightShader();
-
-        // color processing...
-        for(int i=0;i<3;++i){
-            content_.color[i]=std::min(255.f,content_.color[i]);
-        }
-        
-    }
-    else if(otype==PrimitiveType::LINE){
-        std::cout<<"fragmentShader: I haven't supported LINE rendering yet~\n";
-    }
-    else{
-        std::cout<<"fragmentShader:Actually, I haven't supported anything except MESH rendering...\n";
-    }
+    else if(checkShader(ShaderType::Color))
+        colorShader();
     
-    return true;
+    else if(checkShader(ShaderType::Depth))
+        depthShader();
+    
+    else if(checkShader(ShaderType::Normal))
+        normalShader();
+    
+    else if(checkShader(ShaderType::Light))
+        lightShader();
+
+    content_.color=glm::clamp(content_.color,glm::vec4(0),glm::vec4(255.0));
+}
+
+void Shader::fragmentShader(FragmentHolder& fragment ){
+    bindFragmentHolder(fragment);
+    if  (checkShader(ShaderType::Texture)&&material_)                               
+        textureShader();
+
+    else if(checkShader(ShaderType::Color))
+        colorShader();
+    
+    else if(checkShader(ShaderType::Depth))
+        depthShader();
+    
+    else if(checkShader(ShaderType::Normal))
+        normalShader();
+    
+    else if(checkShader(ShaderType::Light))
+        lightShader();
+
+    // color processing...
+    for(int i=0;i<3;++i){
+        content_.color[i]=std::min(255.f,content_.color[i]);
+    }
 }
 
 void Shader::blinnphoneShader(Material& mtl){
@@ -121,17 +145,13 @@ void Shader::blinnphoneShader(Material& mtl){
     auto& v1=content_.v[0];
     auto& v2=content_.v[1];
     auto& v3=content_.v[2];
-    // position in world space
-    glm::vec3 fragpos;  
-    for(int i=0;i<3;++i)
-        fragpos[i]=glm::dot(glm::vec3(v1->w_pos_[i],v2->w_pos_[i],v3->w_pos_[i]),content_.vbary);
 
     // multiple lights shading by blinn-phong shader
     for(auto light:lights_){
         if(LightType::Dirction==light->type_){
             std::shared_ptr<DirLight> ptr=std::dynamic_pointer_cast<DirLight>(light);
             if(ptr){
-                shadeDirectLight(*ptr,content_.normal,camera_->getPosition(),fragpos,mtl); 
+                shadeDirectLight(*ptr,content_.normal,camera_->getPosition(),content_.fragpos,mtl); 
             }else{
                 std::cerr<<"fail to get ptr!\n";
                 exit(-1);
@@ -140,7 +160,7 @@ void Shader::blinnphoneShader(Material& mtl){
             assert(LightType::Point==light->type_);
             std::shared_ptr<PointLight> ptr=std::dynamic_pointer_cast<PointLight>(light);
             if(ptr){
-                shadePointLight(*ptr,content_.normal,camera_->getPosition(),fragpos,mtl);
+                shadePointLight(*ptr,content_.normal,camera_->getPosition(),content_.fragpos,mtl);
             }else{
                 std::cerr<<"fail to get ptr!\n";
                 exit(-1);
@@ -158,10 +178,9 @@ void Shader::textureShader(){
     auto ami=material_->getTexture(MltMember::Ambient);
     auto diff=material_->getTexture(MltMember::Diffuse);
     auto spec=material_->getTexture(MltMember::Specular);
-    float u,v;
-    u=glm::dot(glm::vec3(v1->uv_[0],v2->uv_[0],v3->uv_[0]),content_.vbary);
-    v=glm::dot(glm::vec3(v1->uv_[1],v2->uv_[1],v3->uv_[1]),content_.vbary);
 
+    auto& u=content_.uv[0];
+    auto& v=content_.uv[1];
     if(diff){// get diffuse color
         temp.diffuse_= diff->getColorBilinear(u,v);
     }else{
@@ -188,19 +207,16 @@ void Shader::textureShader(){
 }
 
 void Shader::colorShader(){
-    Material temp;  // record materials of this fragment
     auto& v1=content_.v[0];
     auto& v2=content_.v[1];
     auto& v3=content_.v[2];
 
     if(!checkShader(ShaderType::LIGHTSHADER)){
-        for(int i=0;i<4;++i)
-            content_.color[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
+        content_.color=content_.in_color;
     }
     else{
-        for(int i=0;i<3;++i)
-            temp.diffuse_[i]=glm::dot(glm::vec3(v1->color_[i],v2->color_[i],v3->color_[i]),content_.vbary);
-
+        Material temp;
+        temp.diffuse_=content_.in_color;
         temp.ambient_=temp.diffuse_;
         temp.specular_=(0.2f)*temp.diffuse_;
 

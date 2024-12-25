@@ -13,29 +13,29 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 int main(void) {
     // init my render
     Render render;
-    // render.loadDemoScene("Bunny",ShaderType::Depth);//ShaderType::BlinnPhone|ShaderType::ORDER
-    render.loadDemoScene("CornellBox",ShaderType::Depth);
-    // render.loadDemoScene("Boxes",ShaderType::Depth);
+    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);
+    // render.loadDemoScene("CornellBox",ShaderType::Depth);
+    // render.loadDemoScene("SingleBox",ShaderType::Normal);
     
     render.setViewport(1600,16.0/9.0,60.0);
     auto& camera=render.getCamera();
     camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
 
-    auto& colorbuffer=render.getColorBuffer();
-    auto& scene=render.getScene();
-
-    int width=camera.getImageWidth();
-    int height=camera.getImageHeight();
     
     RenderSetting setting;
-    setting.shader_switch=ShaderSwitch::ALL_ON;
+    setting.back_culling=true;
+    setting.earlyz_test=true;
+    setting.hzb_flag=false;
+    setting.scan_convert=false;
     setting.show_tlas=true;
-    // setting.show_blas=true;
-    // setting.shader_setting.flags=ShaderSwitch::ALL_ON^ShaderSwitch::BackCulling;
+    setting.show_blas=false;
 
 
     // init glfw window and glad
+    int width=camera.getImageWidth();
+    int height=camera.getImageHeight();
+
     Window window;
     window.init("SRender", width, height);
     window.bindRender(&render);
@@ -46,6 +46,7 @@ int main(void) {
 
     // gameloop
     render.pipelineInit(setting);
+    auto& colorbuffer=render.getColorBuffer();
     while (!window.shouldClose()) {
         /* RENDERING */
         render.moveCamera();
@@ -69,7 +70,7 @@ int main(void) {
             curTime = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(curTime - lastTime).count();
         }
-        std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<std::endl;
+        std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<" ms "<<std::endl;
 
         // postrender events
         window.swapBuffer();

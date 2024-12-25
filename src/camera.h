@@ -10,13 +10,13 @@ enum class CameraMovement{
 	REFRESH,
 };
 
-//@todo: interaction operations, such as move and rotate
 class Camera{
 public:
     Camera():position_(glm::vec3(0.f)),front_(glm::vec3(0,0,-1)),right_(glm::vec3(1,0,0)),
 			up_(glm::vec3(0,1,0)),image_width_(1000),fov_(60){
-
+		image_width_+=image_width_%2;
 		image_height_=(int)(image_width_/aspect_ratio_);
+		image_height_+=image_height_%2;
 		aspect_ratio_=image_width_/(float)image_height_;
 
 		half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
@@ -36,7 +36,9 @@ public:
 	Camera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000)
 	:position_(pos),right_(glm::normalize(right)),fov_(fov),aspect_ratio_(ratio),image_width_(image_width)
 	{
+		image_width_+=image_width_%2;
 		image_height_=(int)(image_width/aspect_ratio_);
+		image_height_+=image_height_%2;
 		aspect_ratio_=image_width/(float)image_height_;
 
 		half_near_height_=tan(glm::radians(fov/2))*near_flat_z_;
@@ -48,7 +50,9 @@ public:
 	}
 	void setViewport(uint32_t width,float ratio,float fov){
 		image_width_=width;
+		image_width_+=image_width_%2;
 		image_height_=(int)(image_width_/ratio);
+		image_height_+=image_height_%2;
 		aspect_ratio_=image_width_/(float)image_height_;
 		fov_=fov;
 
