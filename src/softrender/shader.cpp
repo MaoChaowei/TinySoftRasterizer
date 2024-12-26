@@ -231,7 +231,7 @@ void Shader::lightShader(){
 
 void Shader::depthShader(){
     float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));        // from ndc Zn to view space -Ze(since Zn is non-linear!)
-    content_.color=glm::vec4( (255.0*dist-far_plane_)/(near_plane_-far_plane_));
+    content_.color=glm::vec4( (255.0*(dist-far_plane_))/(near_plane_-far_plane_));
 }
 
 void Shader::normalShader(){

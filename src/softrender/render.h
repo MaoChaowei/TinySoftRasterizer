@@ -36,8 +36,10 @@ class Render{
 public:
     Render():camera_(),colorbuffer_(std::make_shared<ColorBuffer>(camera_.getImageWidth(),camera_.getImageHeight())),
             zbuffer_(std::make_shared<DepthBuffer>(camera_.getImageWidth(),camera_.getImageHeight())){
-        box_.min={0,0};
-        box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+        box2d_.min={0,0};
+        box2d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+        box3d_.min={0,0,-1};
+        box3d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1,1};
     }
 
     // MEMBER SETTING
@@ -60,6 +62,8 @@ public:
     inline void cleanFrame(){
         colorbuffer_->clear();
         zbuffer_->clear();
+        if(setting_.hzb_flag)
+            hzb_->clear();
     }
 
     inline  Camera& getCamera(){ return camera_;}
@@ -69,7 +73,7 @@ public:
     // PIPELINE
     void pipelineInit(const RenderSetting & setting=RenderSetting());
     void pipelineBegin();
-    bool depthTest(uint32_t x,uint32_t y);
+    // bool depthTest(uint32_t x,uint32_t y);
     
     // void pipelineNaive();
 
@@ -109,8 +113,6 @@ private:
     void drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color=glm::vec4(255));
     void drawTriangleNaive();
     void drawTriangleScanLine();
-    void scanLineConvert(std::vector<const Vertex*> vertices,std::vector<FragmentHolder>& edge_points);
-    void rasterizeEdge(const Vertex* v1,const Vertex* v2,bool in1,bool in2,std::vector<FragmentHolder>& edge_points);
 
     void traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model=glm::mat4(1.0));
     void pipelineHZBtraverseBVH(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS);
@@ -133,7 +135,8 @@ private:
     glm::mat4 mat_perspective_; // world to NDC
     glm::mat4 mat_viewport_;    // NDC to screen
 
-    AABB2d box_;                // screen aabb box
+    AABB2d box2d_;                // screen aabb box
+    AABB3d box3d_;              
 
 public:
     // for ui

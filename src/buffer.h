@@ -46,7 +46,7 @@ private:
     int width_;
     int height_;
     // addr_:帧缓存起始地址，采用rgba四字节连续存储的方式表示一个像素的颜色，
-    // viewport的地址（x，y）按照：左下角为（0,0），右上角为（width,height）
+    // viewport的地址（x，y）按照：左下角为（0,0），右上角为（width-1,height-1）
     unsigned char* addr_;
     int pixel_num_=0;
 
@@ -81,7 +81,7 @@ public:
     void setDepth(int x,int y,float depth){
         int idx=y*width_+x;
         if(idx>=pixel_num_){
-            std::cerr<<"setDepth: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
+            std::cerr<<"setDepth: (x,y) out of range!x="<<x<<"/"<<width_-1<<",y="<<y<<"/"<<height_-1<<std::endl;
             exit(-1);
         }
         zbuffer_[idx]=depth;
@@ -90,6 +90,7 @@ public:
     inline std::shared_ptr<std::vector<float>> getZbuffer(){
         return std::make_shared<std::vector<float>>(zbuffer_);
     }
+
     /**
      * depth test on (x,y): check wheather current z-depth of (x,y) is closer than `depth`. if so,
      * fail the depth test and return False, on the contrary, update z-buffer and return True. 
@@ -97,7 +98,7 @@ public:
     inline bool zTest(int x,int y,float depth){
         int idx=y*width_+x;
         if(x<0||y<0||x>width_-1||y>height_-1){
-            std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
+            std::cerr<<"zTest: (x,y) out of range!x="<<x<<"/"<<width_-1<<",y="<<y<<"/"<<height_-1<<std::endl;
             return false;
         }
 
@@ -111,8 +112,8 @@ public:
     inline float getDepth(int x,int y){
         int idx=y*width_+x;
         if(x<0||y<0||x>width_-1||y>height_-1){
-            std::cerr<<"zTest: (x,y) out of range!x="<<x<<",y="<<y<<std::endl;
-            exit(-1);
+            std::cerr<<"getDepth: (x,y) out of range!x="<<x<<"/"<<width_-1<<",y="<<y<<"/"<<height_-1<<std::endl;
+            return 0;// exit(-1);
         }
         return zbuffer_[idx];
     }

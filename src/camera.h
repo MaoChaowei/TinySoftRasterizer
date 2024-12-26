@@ -21,7 +21,9 @@ public:
 
 		half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
 		half_near_width_=aspect_ratio_*half_near_height_;
-		
+
+		yaw_   = -90.0f; 
+    	pitch_ = 0.0f;
 	}
 	/**
 	 * @brief Construct a new camera object
@@ -46,6 +48,11 @@ public:
 
 		front_=glm::normalize(lookat-pos);
 		up_=glm::cross(right_,front_);
+
+		pitch_ = glm::degrees(asin(front_.y));
+		yaw_   = glm::degrees(atan2(front_.z, front_.x));
+		if (pitch_ > 89.0f)  pitch_ = 89.0f;
+		if (pitch_ < -89.0f) pitch_ = -89.0f;
 
 	}
 	void setViewport(uint32_t width,float ratio,float fov){
@@ -102,8 +109,8 @@ private:
 
 	float speed_=0.8f;
 	float sensitivity_=0.1f;
-	float yaw_;    // horizental
-    float pitch_;  // vertical
+	float yaw_=0.f;    // horizental
+    float pitch_=0.f;  // vertical
 
 	// define the image and near flat
 	

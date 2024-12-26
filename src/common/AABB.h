@@ -42,7 +42,6 @@ struct AABB2d{
 struct AABB3d{
     glm::vec3 min;
     glm::vec3 max;
-    // bool valid=true;
     AABB3d():min(srender::INF,srender::INF,srender::INF),max(-srender::INF,-srender::INF,-srender::INF){}
     AABB3d(const glm::vec3& p1,const glm::vec3& p2,const glm::vec3& p3){
         min.x=std::min(std::min(p1.x,p2.x),p3.x);
@@ -62,6 +61,16 @@ struct AABB3d{
         max.x=std::max(max.x,box.max.x);
         max.y=std::max(max.y,box.max.y);
         max.z=std::max(max.z,box.max.z);
+    }
+
+    void clipAABB(const AABB3d& box){
+        min.x=std::max(min.x,box.min.x);
+        min.y=std::max(min.y,box.min.y);
+        min.z=std::max(min.z,box.min.z);
+        
+        max.x=std::min(max.x,box.max.x);
+        max.y=std::min(max.y,box.max.y);
+        max.z=std::min(max.z,box.max.z);
     }
 
     float extent(int axis) const{

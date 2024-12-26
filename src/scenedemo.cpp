@@ -16,6 +16,14 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     scene_.clearScene();
     if(name=="SingleBox"){
         {
+            glm::vec3 model_position{0, 0, -200};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
+        }
+        {
             glm::vec3 model_position{0, 0, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));

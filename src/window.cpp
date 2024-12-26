@@ -19,24 +19,32 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
 void Window::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (instance && instance->render_) {
-        // 计算鼠标距上一帧的偏移量。
-        // 把偏移量添加到摄像机的俯仰角和偏航角中。
-        // 对偏航角和俯仰角进行最大和最小值的限制。
-        // 计算方向向量。
+    if (!instance || !instance->render_) return;
+
+    int leftButtonState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+
+    if (leftButtonState == GLFW_PRESS) {
+        // 如果是第一次检测到左键按下，需要重置 lastX_ 和 lastY_，避免镜头跳动
         if (instance->firstMouse_) {
             instance->lastX_ = xpos;
             instance->lastY_ = ypos;
             instance->firstMouse_ = false;
         }
 
-        float xoffset = xpos - instance->lastX_;
-        float yoffset = instance->lastY_ - ypos; // 注意 y 方向是反的
-        instance->lastX_ = xpos;
-        instance->lastY_ = ypos;
+        // 计算偏移量
+        float xoffset = static_cast<float>(xpos - instance->lastX_);
+        float yoffset = static_cast<float>(instance->lastY_ - ypos); // 注意 y 方向相反
+        instance->lastX_ = static_cast<float>(xpos);
+        instance->lastY_ = static_cast<float>(ypos);
 
+        // 将偏移量传给渲染器
         instance->render_->handleMouseInput(xoffset, yoffset);
     }
+    else {
+        // 如果左键没有按下，可以把 firstMouse_ 重置，以便下次按下时重新设置 (可选)
+        instance->firstMouse_ = true;
+    }
+
 }
 
 // 初始化glfw窗口
@@ -72,7 +80,7 @@ int Window::init(const char* name,int width,int height)
     glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
     glfwSetKeyCallback(window_, keyCallback);  
     glfwSetCursorPosCallback(window_, mouseCallback);
-    glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
+    // glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
 
     this->initData();
     this->initShaderProgram();    // init shader program

@@ -25,8 +25,12 @@ void Render::pipelineInit(const RenderSetting & setting){
     sdptr_->bindTimer(&timer_);
 
     // 3. init rastertizer
-    tri_scanliner_=std::make_shared<PerTriangleScanLiner>();
-    tri_scanliner_->initialize(box_,colorbuffer_,zbuffer_,sdptr_);
+    tri_scanliner_=std::make_shared<PerTriangleScanLiner>(box2d_,colorbuffer_,zbuffer_,sdptr_);
+
+    if(setting_.hzb_flag==true){
+        hzb_=std::make_shared<HZbuffer>(camera_.getImageWidth(),camera_.getImageHeight());
+
+    }
 
     is_init_=true;
 }
@@ -72,14 +76,15 @@ void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
 
 // go through all the pixels inside the AABB, that means I didn't use coherence here
 void Render::drawTriangleNaive(){
-    AABB2d aabb;
+
     glm::vec3 t[3];
     for(int i=0;i<3;++i)
         t[i]=sdptr_->getScreenPos(i);
-    
-    aabb.containTriangel(t[0],t[1],t[2]);
-    aabb.clipAABB(box_);
-    if(!aabb.valid)
+
+    AABB3d aabb(t[0],t[1],t[2]);
+    aabb.clipAABB(box3d_);
+
+    if(aabb.min.x>=aabb.max.x||aabb.min.y>=aabb.max.y)
         return;
     
     if(ShaderType::Frame==sdptr_->getType()){
@@ -88,30 +93,35 @@ void Render::drawTriangleNaive(){
         }
     }
     else{
+        bool goHZB=setting_.hzb_flag==true&&hzb_;
+        if(goHZB&&hzb_->rapidRefuseBox(aabb)){
+            ++hzb_->refuse_cnt_;
+            return;
+        }
+
         for(int y=aabb.min.y;y<=aabb.max.y;++y){
             for(int x=aabb.min.x;x<=aabb.max.x;++x){
-                if(depthTest(x,y)){
+
+                float depth=sdptr_->fragmentDepth(x,y);
+
+                if(goHZB&&hzb_->finestZTest(x,y,depth)){
                     sdptr_->fragmentShader(x,y);
                     colorbuffer_->setPixel(x,y,sdptr_->getColor());
-                    zbuffer_->setDepth(x,y,sdptr_->getDepth());
+                }
+                
+                else if(!goHZB&&zbuffer_->zTest(x,y,depth)){
+                    sdptr_->fragmentShader(x,y);
+                    colorbuffer_->setPixel(x,y,sdptr_->getColor());
                 }
             }
-        }
+        }  
+    
     }
 }
 
-bool Render::depthTest(uint32_t x,uint32_t y){
-    float depth=sdptr_->fragmentDepth(x,y);
-    if(setting_.hzb_flag==true){
-        exit(-1);
-    }
-    else{
-        if(depth<zbuffer_->getDepth(x,y))
-            return true;
-        
-        return false;
-    }
-}
+// bool Render::depthTest(uint32_t x,uint32_t y){
+//     return true;
+// }
 
 void Render::drawTriangleScanLine(){
     if(ShaderType::Frame==sdptr_->getType()){
@@ -121,7 +131,7 @@ void Render::drawTriangleScanLine(){
             t[i]=sdptr_->getScreenPos(i);
         
         aabb.containTriangel(t[0],t[1],t[2]);
-        aabb.clipAABB(box_);
+        aabb.clipAABB(box2d_);
         if(!aabb.valid)
             return;
 
@@ -153,7 +163,7 @@ void Render::pipelineBegin(){
     if(camera_.needUpdateView())
         updateViewMatrix();
 
-    // shader might need these to calculate color:
+    // shader need these to calculate color:
     sdptr_->bindCamera(std::make_shared<Camera>(camera_));          
     sdptr_->bindLights(scene_.getLights());
 
@@ -258,6 +268,11 @@ void Render::pipelineBegin(){
 #endif
 
     }// end of for-asinstances
+
+    // end of a frame
+
+    if(setting_.hzb_flag)
+        hzb_->prinCNT();
 
     if(setting_.show_tlas){
         showTLAS();
@@ -365,7 +380,7 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     // naive clip: create a aabb2d to intersect with the screen 
     AABB2d aabb;
     aabb.containLine(glm::vec2(t1),glm::vec2(t2));
-    aabb.clipAABB(box_);
+    aabb.clipAABB(box2d_);
 
     // make sure: x-axis is less steep and t1 is the left point
     bool swap_flag=0;
@@ -388,23 +403,27 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     int delta2=dy*2;
     int error2=0;
     int y=t1.y;
+
+    auto& depthbuf=setting_.hzb_flag?hzb_->getFinesetZbuffer():*zbuffer_;
+
     for(int x=t1.x;x<=t2.x;++x){
+        // TODO: 忘记透视矫正了欸！
         float dt=(x-t1.x)/float(dx);
         float curz=(1-dt)*t1.z+dt*(t2.z);
         if(swap_flag){
             if(x<=aabb.max.y&&x>=aabb.min.y&&y<=aabb.max.x&&y>=aabb.min.x){
-                float curdepth=zbuffer_->getDepth(y,x);
+                float curdepth=depthbuf.getDepth(y,x);
                 if(curz<=curdepth+10*srender::EPSILON){
                     colorbuffer_->setPixel(y,x,color);
-                    zbuffer_->setDepth(y,x,curz);
+                    depthbuf.setDepth(y,x,curz);
                 }
             }
         }else{
             if(y<=aabb.max.y&&y>=aabb.min.y&&x<=aabb.max.x&&x>=aabb.min.x){
-                float curdepth=zbuffer_->getDepth(x,y);
+                float curdepth=depthbuf.getDepth(x,y);
                 if(curz<=curdepth+10*srender::EPSILON){
                     colorbuffer_->setPixel(x,y,color);
-                    zbuffer_->setDepth(x,y,curz);
+                    depthbuf.setDepth(x,y,curz);
                 }
             }
         }
@@ -426,7 +445,7 @@ void Render::drawPoint(const glm::vec2 p, float radius,const glm::vec4 color){
     glm::vec2 maxp=p+radius;
     AABB2d box;
     box.containLine(minp,maxp);
-    box.clipAABB(box_);
+    box.clipAABB(box2d_);
 
     for(int y = box.min.y; y <= box.max.y; ++y){
         for(int x = box.min.x; x <= box.max.x; ++x){
@@ -447,8 +466,10 @@ void Render::afterCameraUpdate(){
     zbuffer_->reSetBuffer(camera_.getImageWidth(),camera_.getImageHeight());
     updateMatrix();
 
-    box_.min={0,0};
-    box_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+    box2d_.min={0,0};
+    box2d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
+    box3d_.min={0,0,-1};
+    box3d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1,1};
 }
 
 void Render::handleKeyboardInput(int key, int action) {

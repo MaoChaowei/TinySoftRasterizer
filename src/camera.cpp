@@ -8,6 +8,11 @@ void Camera::updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float f
 	aspect_ratio_=ratio;
 
 	up_=glm::cross(right_,front_);
+
+	pitch_ = glm::degrees(asin(front_.y));
+	yaw_   = glm::degrees(atan2(front_.z, front_.x));
+	if (pitch_ > 89.0f)  pitch_ = 89.0f;
+	if (pitch_ < -89.0f) pitch_ = -89.0f;
 	
 	setViewport(image_width,ratio,fov);
 
