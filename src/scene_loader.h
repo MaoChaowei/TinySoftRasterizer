@@ -16,6 +16,8 @@ public:
         all_lights_.emplace_back(light);
     }
 
+    void setBVHsize(uint32_t leaf_num){leaf_num_=leaf_num;}
+
     void addObjInstance(std::string filename, glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
         // create BLAS for obj if it hasn't been built.
         if(blas_map_.find(filename)==blas_map_.end()){
@@ -37,7 +39,7 @@ public:
         tlas_->buildTLAS();
     }
 
-    inline const  std::vector<ASInstance>& getAllInstances()const{
+    inline  std::vector<ASInstance>& getAllInstances(){
         if(tlas_->all_instances_.size())
             return tlas_->all_instances_;
         else{
@@ -49,9 +51,12 @@ public:
     inline const std::vector<std::shared_ptr<Light>>& getLights()const{
         return all_lights_;
     } 
-    inline const TLAS& getTLAS()const{
+    inline TLAS& getTLAS(){
         return *tlas_;
     }
+
+    inline int getFaceNum(){return face_num_;}
+
 
     inline void clearScene(){
         tlas_=std::make_unique<TLAS>();

@@ -55,9 +55,11 @@ int BVHbuilder::buildBVH(uint32_t start,uint32_t end){
     auto& current=nodes_->at(nodeidx);
     current.primitive_num=end-start+1;
     current.prmitive_start=start;
+    
     for(int i=start;i<=end;++i){
         current.bbox.expand(priboxes_[pridices_[i]]);
     }
+
     // leaf?
     if(end-start+1<=leaf_size_)
         return nodeidx;

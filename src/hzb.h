@@ -93,14 +93,9 @@ public:
         for(auto& buffer:hzb_){
             buffer.clear();
         }
-        refuse_cnt_=0;
     }
 
     DepthBuffer& getFinesetZbuffer(){return hzb_[fineset_level_];}
-
-public:
-    int refuse_cnt_=0;
-    void prinCNT(){std::cout<<"HZB refuse_cnt= "<<refuse_cnt_<<std::endl;}
 
 private:
     uint32_t width_;

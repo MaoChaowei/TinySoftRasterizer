@@ -123,9 +123,7 @@ void Render::clipWithPlane(ClipPlane plane, std::vector<Vertex>& in, std::vector
 
 // return the number of triangles after clipping
 int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>& out) {
-    if (vertices.size() != 3) {
-        return 0;
-    }
+    assert(vertices.size()==3);
 
     // get outcode
     int outcode1 = ClipTools::computeOutcode(vertices[0].c_pos_);
@@ -183,6 +181,161 @@ int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>&
     }
 
     return out.size() / 3;
+}
+
+
+// backculling and frustrum culling
+void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal_mat){
+    instance.refreshVertices();
+
+    auto& obj=instance.blas_->object_;
+    const std::vector<Vertex>& in_vertices=obj->getconstVertices();
+    const std::vector<uint32_t>& in_indices=obj->getIndices();
+    std::vector<glm::vec3>& objfacenorms=obj->getFaceNorms();
+    const std::vector<int>& in_mtlidx=obj->getMtlIdx();
+
+    std::vector<Vertex>& out_vertices=*instance.vertices_;
+    std::vector<int>& out_mtlidx=*instance.mtlidx_;
+     std::vector<PrimitiveHolder>& out_primitives_buffer=*instance.primitives_buffer_;
+
+    uint32_t ver_num=in_vertices.size();
+    uint32_t idx_num=in_indices.size();
+    uint32_t face_num=in_mtlidx.size();
+    uint32_t primitive_num=instance.blas_->primitives_indices_->size();
+
+    // reserve some space
+    out_vertices.reserve(ver_num+100);
+    out_mtlidx.reserve(face_num+30);
+    out_primitives_buffer.reserve(primitive_num+10);
+
+    assert(idx_num%3==0&&idx_num/3==primitive_num);
+
+    // define clipping order
+    std::vector<ClipPlane> planes = {
+        ClipPlane::Left,
+        ClipPlane::Right,
+        ClipPlane::Bottom,
+        ClipPlane::Top,
+        ClipPlane::Near,
+        ClipPlane::Far
+    };
+
+
+    for(int indices_offset=0;indices_offset<idx_num;indices_offset+=3){
+    // clipping each triangle.
+        int face_cnt=indices_offset/3;
+
+        uint32_t idx1=in_indices[indices_offset+0];
+        uint32_t idx2=in_indices[indices_offset+1];
+        uint32_t idx3=in_indices[indices_offset+2];
+
+        auto& v1=in_vertices[idx1];
+        auto& v2=in_vertices[idx2];
+        auto& v3=in_vertices[idx3];
+
+        /* ---------------- back culling ---------------- */
+        if(setting_.back_culling&&obj->isBackCulling()){
+
+            glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
+            glm::vec3 dir=camera_.getPosition()-v1.w_pos_;
+            if(backCulling(norm,dir)==true){
+                ++back_culled_face_num_;
+                out_primitives_buffer.emplace_back(ClipFlag::refused,
+                                                -1,// mtlidx_
+                                                0, // vertex_start_pos_
+                                                0);// vertex_num_
+                continue;
+            }
+        }
+
+        /* -------------- frustrum culling -------------- */
+        // get outcode
+        int outcode1 = ClipTools::computeOutcode(v1.c_pos_);
+        int outcode2 = ClipTools::computeOutcode(v2.c_pos_);
+        int outcode3 = ClipTools::computeOutcode(v3.c_pos_);
+
+        int outcode_OR = outcode1 | outcode2 | outcode3;
+        int outcode_AND = outcode1 & outcode2 & outcode3;
+
+        // rapid reject
+        if (outcode_AND != 0) {
+            ++clipped_face_num_;
+            out_primitives_buffer.emplace_back(ClipFlag::refused,
+                                                -1,// mtlidx_
+                                                0, // vertex_start_pos_
+                                                0);// vertex_num_
+            continue;
+        }
+
+        // rapid accept
+        if (outcode_OR == 0) {
+            out_primitives_buffer.emplace_back(ClipFlag::accecpted,
+                                                in_mtlidx[face_cnt], // mtlidx_
+                                                out_vertices.size(), // vertex_start_pos_
+                                                3);                  // vertex_num_
+            out_vertices.emplace_back(v1);
+            out_vertices.emplace_back(v2);
+            out_vertices.emplace_back(v3);
+            
+
+            out_mtlidx.emplace_back(in_mtlidx[face_cnt]);
+            
+            continue;
+        }
+
+        std::vector<Vertex> input{v1,v2,v3};
+        std::vector<Vertex> temp;
+
+        bool clipflag=false;
+        for (const auto& plane : planes) {// TODO: use mask to reduce unneccessary clipping
+            temp.clear();
+            clipWithPlane(plane, input, temp);
+            input = std::move(temp);
+
+            if (input.empty()) {
+                clipflag=true;
+                break;
+            }
+        }
+        // totally clipped out
+        if(clipflag){
+            ++clipped_face_num_;
+            out_primitives_buffer.emplace_back(ClipFlag::refused,
+                                            -1,// mtlidx_
+                                            0, // vertex_start_pos_
+                                            0);// vertex_num_
+            continue;
+        }
+
+        int vnum = input.size();
+        if (vnum < 3){
+             ++clipped_face_num_;
+            out_primitives_buffer.emplace_back(ClipFlag::refused,
+                                                -1,// mtlidx_
+                                                0, // vertex_start_pos_
+                                                0);// vertex_num_
+            continue;
+        }
+
+        // been clipped into pieaces
+        int vertex_start_pos=out_vertices.size();
+        for (int i = 1; i < vnum - 1; ++i) {
+            out_vertices.emplace_back(input[0]);
+            out_vertices.emplace_back(input[i]);
+            out_vertices.emplace_back(input[i + 1]);
+
+            out_mtlidx.emplace_back(in_mtlidx[face_cnt]);
+        }
+        total_face_num_+=vnum-3;
+        out_primitives_buffer.emplace_back(ClipFlag::clipped,
+                                            in_mtlidx[face_cnt], // mtlidx_
+                                            vertex_start_pos,    // vertex_start_pos_
+                                            3*(vnum-2));         // vertex_num_
+    }
+
+    assert(out_vertices.size()%3==0);
+    assert(out_primitives_buffer.size()==primitive_num);
+
 }
 
 

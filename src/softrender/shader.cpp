@@ -30,6 +30,15 @@ void Shader::vertex2Screen(Vertex& v ){
     v.s_pos_=(*viewport_)*(v.c_pos_/v.c_pos_.w);     
 }
 
+// use this function to maintain a aabb3d box in screenspace
+void Shader::vertex2Screen(Vertex& v,AABB3d& box){
+    // perspective division and viewport transformation
+    v.s_pos_=(*viewport_)*(v.c_pos_/v.c_pos_.w);     
+
+    box.addPoint(v.s_pos_);
+
+}
+
 float Shader::fragmentDepth(uint32_t x,uint32_t y){
     auto& v1=content_.v[0];
     auto& v2=content_.v[1];

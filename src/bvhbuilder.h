@@ -11,9 +11,11 @@ struct BVHnode
 {
     int left;
     int right;
-    AABB3d bbox;
-    // indices of `primitives_` in class BVHbuilder
-    // specify which primitives do this node control.
+
+    AABB3d bbox;    // box in world or local space, pre-calculated when obj file is loaded.
+    AABB3d sbox;    // box in screen space, calculated each frame.
+
+    // specify which elements do this node control.
     unsigned int prmitive_start;
     unsigned int primitive_num ;
 

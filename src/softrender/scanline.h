@@ -6,6 +6,8 @@
 #include"shader.h"
 #include"algorithm"
 
+namespace ScanLine{
+
 struct EdgeNode{
     float x_;               // upper endpoint's x value as initial value. when y--,then x--.
     float dx_dy_;           // -dx/dy
@@ -89,3 +91,5 @@ private:
     std::shared_ptr<Shader> sdptr_;
 
 };
+
+}

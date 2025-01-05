@@ -25,11 +25,13 @@ enum class ClipPlane {
 struct RenderSetting{
     bool show_tlas=false;
     bool show_blas=false;
-    bool hzb_flag=false;
+    bool bvh_hzb=false;
+    bool easy_hzb=false;
     bool scan_convert=false;
 
     bool back_culling=true;
     bool earlyz_test=true;
+    bool profile_report=true;
 };
 
 class Render{
@@ -52,6 +54,7 @@ public:
         camera_.setViewport(width,ratio,fov);
         afterCameraUpdate();
     }
+    void setBVHLeafSize(uint32_t num){scene_.setBVHsize(num);}
     void addObjInstance(std::string filename,glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true);
 
     inline void setDeltaTime(float t){delta_time_=t;}
@@ -62,8 +65,16 @@ public:
     inline void cleanFrame(){
         colorbuffer_->clear();
         zbuffer_->clear();
-        if(setting_.hzb_flag)
+        if(setting_.easy_hzb||setting_.bvh_hzb)
             hzb_->clear();
+        
+        if(setting_.profile_report){
+            total_face_num_=scene_.getFaceNum();
+            shaded_face_num_=0;
+            back_culled_face_num_=0;
+            hzb_culled_face_num_=0;
+            clipped_face_num_=0;
+        }
     }
 
     inline  Camera& getCamera(){ return camera_;}
@@ -73,12 +84,20 @@ public:
     // PIPELINE
     void pipelineInit(const RenderSetting & setting=RenderSetting());
     void pipelineBegin();
-    // bool depthTest(uint32_t x,uint32_t y);
+
+    void pipelineGeometryPhase();
+
+    void pipelineNaive();
+    void pipelineRasterizePhasePerInstance();
+
+    void pipelineHZB_BVH();
+    void pipelineRasterizePhaseHZB_BVH();
     
-    // void pipelineNaive();
+    void cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal_mat);
 
     int pipelineClipping(std::vector<Vertex>& v,std::vector<Vertex>& out);
     void clipWithPlane(ClipPlane plane,std::vector<Vertex>&in,std::vector<Vertex>&out);
+    
     bool backCulling(const glm::vec3& face_norm,const glm::vec3& dir)const;
 
 
@@ -91,20 +110,8 @@ public:
     void showTLAS();
     void showBLAS(const ASInstance& inst);
     void loadDemoScene(std::string name,ShaderType shader);
+    void printProfile();
 
-    void printMatrix(const glm::mat4& mat,const std::string name)const{
-        std::cout<<name<<std::endl;
-        for(int i=0;i<4;++i){
-            for(int j=0;j<4;++j)
-                std::cout<<mat[j][i]<<" ";
-            std::cout<<std::endl;
-        }
-    }
-    void debugMatrix()const{
-        printMatrix(mat_view_,"mat_view_");
-        printMatrix(mat_perspective_,"mat_perspective_");
-        printMatrix(mat_viewport_,"mat_viewport_");
-    }
 
 private:
     // rasterize
@@ -112,10 +119,13 @@ private:
     void drawLine(glm::vec2 t1,glm::vec2 t2);
     void drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color=glm::vec4(255));
     void drawTriangleNaive();
+    void drawTriangleHZB();
     void drawTriangleScanLine();
 
     void traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model=glm::mat4(1.0));
-    void pipelineHZBtraverseBVH(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS);
+    void DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vector<ASInstance>& instances,uint32_t nodeIdx);
+    void DfsBlas_BVHwithHZB(const ASInstance& inst,int32_t nodeIdx);
+    // bool mapWorldBox2ScreenBox(const BVHnode& node,const glm::mat4& vp,AABB3d& sbox);
 
     // update members accrordingly after camera's update
     void afterCameraUpdate();
@@ -124,7 +134,7 @@ private:
     bool is_init_=false;
     RenderSetting setting_;
     std::shared_ptr<Shader> sdptr_;
-    std::shared_ptr<PerTriangleScanLiner> tri_scanliner_;
+    std::shared_ptr<ScanLine::PerTriangleScanLiner> tri_scanliner_;
     Camera camera_;
     std::shared_ptr<ColorBuffer> colorbuffer_;
     std::shared_ptr<DepthBuffer> zbuffer_;
@@ -144,5 +154,11 @@ public:
     bool keys_[1024]={0}; 
     
     CPUTimer timer_;            // (us)
+
+    int total_face_num_=0;
+    int shaded_face_num_=0;
+    int back_culled_face_num_=0;
+    int clipped_face_num_=0;
+    int hzb_culled_face_num_=0;
 
 };

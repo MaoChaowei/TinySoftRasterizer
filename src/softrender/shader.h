@@ -1,5 +1,6 @@
 #pragma once
 #include"common/common_include.h"
+#include"common/AABB.h"
 #include"common/cputimer.h"
 #include"common/enumtypes.h"
 #include"vertex.h"
@@ -32,6 +33,9 @@ struct ShaderContentRecord{
     glm::vec4 color;
     
     ShaderContentRecord(){}
+
+    // For implementaion of scan-line conversion
+    // no need to interpolate by barycenter coordinate, instead using incremental result directly.
     void bindFragment(const FragmentHolder& holder){
         depth=holder.depth_;
         normal=holder.w_norm_;
@@ -101,6 +105,8 @@ public:
      */
     void vertexShader(Vertex& v );
     void vertex2Screen(Vertex& v );
+    void vertex2Screen(Vertex& v,AABB3d& box);
+
     /**
      * @brief shading the fragment with properties set in `ShaderType`.
      * 

@@ -18,6 +18,7 @@ void Render::pipelineInit(const RenderSetting & setting){
 
     // 1. init scene as
     scene_.buildTLAS();
+    total_face_num_=scene_.getFaceNum();
 
     // 2. init shader
     sdptr_=std::make_shared<Shader>();
@@ -25,9 +26,9 @@ void Render::pipelineInit(const RenderSetting & setting){
     sdptr_->bindTimer(&timer_);
 
     // 3. init rastertizer
-    tri_scanliner_=std::make_shared<PerTriangleScanLiner>(box2d_,colorbuffer_,zbuffer_,sdptr_);
+    tri_scanliner_=std::make_shared<ScanLine::PerTriangleScanLiner>(box2d_,colorbuffer_,zbuffer_,sdptr_);
 
-    if(setting_.hzb_flag==true){
+    if(setting_.easy_hzb==true||setting.bvh_hzb==true){
         hzb_=std::make_shared<HZbuffer>(camera_.getImageWidth(),camera_.getImageHeight());
 
     }
@@ -76,6 +77,7 @@ void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
 
 // go through all the pixels inside the AABB, that means I didn't use coherence here
 void Render::drawTriangleNaive(){
+    ++shaded_face_num_;
 
     glm::vec3 t[3];
     for(int i=0;i<3;++i)
@@ -93,23 +95,11 @@ void Render::drawTriangleNaive(){
         }
     }
     else{
-        bool goHZB=setting_.hzb_flag==true&&hzb_;
-        if(goHZB&&hzb_->rapidRefuseBox(aabb)){
-            ++hzb_->refuse_cnt_;
-            return;
-        }
-
         for(int y=aabb.min.y;y<=aabb.max.y;++y){
             for(int x=aabb.min.x;x<=aabb.max.x;++x){
 
                 float depth=sdptr_->fragmentDepth(x,y);
-
-                if(goHZB&&hzb_->finestZTest(x,y,depth)){
-                    sdptr_->fragmentShader(x,y);
-                    colorbuffer_->setPixel(x,y,sdptr_->getColor());
-                }
-                
-                else if(!goHZB&&zbuffer_->zTest(x,y,depth)){
+                if(zbuffer_->zTest(x,y,depth)){
                     sdptr_->fragmentShader(x,y);
                     colorbuffer_->setPixel(x,y,sdptr_->getColor());
                 }
@@ -119,11 +109,47 @@ void Render::drawTriangleNaive(){
     }
 }
 
-// bool Render::depthTest(uint32_t x,uint32_t y){
-//     return true;
-// }
+void Render::drawTriangleHZB(){
+    ++shaded_face_num_;
+    glm::vec3 t[3];
+    for(int i=0;i<3;++i)
+        t[i]=sdptr_->getScreenPos(i);
+
+    AABB3d aabb(t[0],t[1],t[2]);
+    aabb.clipAABB(box3d_);
+
+    if(aabb.min.x>=aabb.max.x||aabb.min.y>=aabb.max.y)
+        return;
+    
+    if(ShaderType::Frame==sdptr_->getType()){
+        for(int i=0;i<3;++i){
+            drawLine(t[i],t[(i+1)%3]);
+        }
+    }
+    else{
+        if(hzb_->rapidRefuseBox(aabb)){
+            --shaded_face_num_;
+            return;
+        }
+
+        for(int y=aabb.min.y;y<=aabb.max.y;++y){
+            for(int x=aabb.min.x;x<=aabb.max.x;++x){
+
+                float depth=sdptr_->fragmentDepth(x,y);
+                if(hzb_->finestZTest(x,y,depth)){
+                    sdptr_->fragmentShader(x,y);
+                    colorbuffer_->setPixel(x,y,sdptr_->getColor());
+                }
+            }
+        }  
+    
+    }
+}
+
 
 void Render::drawTriangleScanLine(){
+    ++shaded_face_num_;
+    
     if(ShaderType::Frame==sdptr_->getType()){
         AABB2d aabb;
         glm::vec3 t[3];
@@ -159,7 +185,7 @@ void Render::pipelineBegin(){
         std::cerr<<"pipelineBegin: didn't use `pipelineInit` to initialize.\n";
         return;
     }
-    // if camera is changed, need to update view
+
     if(camera_.needUpdateView())
         updateViewMatrix();
 
@@ -167,124 +193,351 @@ void Render::pipelineBegin(){
     sdptr_->bindCamera(std::make_shared<Camera>(camera_));          
     sdptr_->bindLights(scene_.getLights());
 
-    // put each instance into the pipeline. TODO: frustrum clipping~
+    // start pipeline
+    if(setting_.bvh_hzb){
+        pipelineHZB_BVH();
+    }else{
+        pipelineNaive();
+    }
+
+
+    if(setting_.show_tlas){
+        showTLAS();
+    }else if(setting_.show_blas){
+        auto& asinstances=scene_.getAllInstances();
+        for(auto& ins:asinstances)
+            showBLAS(ins);
+    }
+
+    if(setting_.profile_report)
+        printProfile();
+}
+
+
+void Render::pipelineGeometryPhase(){
+
+
     auto& asinstances=scene_.getAllInstances();
     for(auto& ins:asinstances){
-        auto& obj=ins.blas_->object_;
-        auto& mat_model=ins.modle_;       
-        auto otype=obj->getPrimitiveType();
-        auto& objvertices=obj->getVertices();
-        auto& objindices=obj->getIndices();
-        auto& objfacenorms=obj->getFaceNorms();
-        auto& objmtls=obj->getMtls();
-        auto& objmtlidx=obj->getMtlIdx();
 
-        // init shader for the current instance
+        auto& obj=ins.blas_->object_;
+        auto& mat_model=ins.modle_;
+
+        // init fragment shader
         glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
         glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
         sdptr_->bindMVP(&mvp);
         sdptr_->bindViewport(&mat_viewport_);
         sdptr_->bindNormalMat(&normal_mat);
         sdptr_->bindModelMat(&mat_model);
-        sdptr_->setShaderType(ins.shader_);
-        sdptr_->setPrimitiveType(otype);
 
-        /*----- Geometry phrase --------*/
-#ifdef TIME_RECORD
-        timer_.start("110.MVP");
-#endif
         // MVP => clip space
-        for(auto& v:objvertices){
+        for(auto& v:obj->getVertices()){   
             sdptr_->vertexShader(v);
         }
 
+        // culling 
+        
+        cullingTriangleInstance(ins,normal_mat);
+
+        // clip space => NDC => screen space 
+        for(auto& newv:*ins.vertices_){
+            sdptr_->vertex2Screen(newv,ins.screenBBox_);
+        }
+    }
+
+}
+
+
+void Render::pipelineNaive(){
+
 #ifdef TIME_RECORD
-        timer_.stop("110.MVP");
+    timer_.start("110.GeometryPhase");
 #endif
-        /*----- Rasterize phrase --------*/
+
+    pipelineGeometryPhase();
+    
+#ifdef TIME_RECORD
+    timer_.stop("110.GeometryPhase");
+#endif
+
+
+#ifdef TIME_RECORD
+    timer_.start("120.RasterizePhasePerInstance");
+#endif
+
+    pipelineRasterizePhasePerInstance();
+
+#ifdef TIME_RECORD
+    timer_.stop("120.RasterizePhasePerInstance");
+#endif
+
+}
+
+void Render::pipelineRasterizePhasePerInstance(){
+    
+    // put each instance into the pipeline. 
+    auto& asinstances=scene_.getAllInstances();
+    for(auto& ins:asinstances){
+
+        auto& obj=ins.blas_->object_;      
+        auto otype=obj->getPrimitiveType();
+        auto& objmtls=obj->getMtls();
+
+        auto& objvertices=*ins.vertices_;
+        auto& objmtlidx=*ins.mtlidx_;
+
+
+        // init shader for the current instance
+        sdptr_->setShaderType(ins.shader_);
+        sdptr_->setPrimitiveType(otype);
+
         // for each primitive
-#ifdef TIME_RECORD
-        timer_.start("120.Rasterize phrase");
-#endif
         int face_cnt=0;
-        for(auto it=objindices.begin();it!=objindices.end();++face_cnt){
-            // do clipping in clip space and reassemble primitives
-            std::vector<Vertex> in,out;
-            for(int t=0;t<3;++t){
-                in.push_back(objvertices[*it++]);
+        for(auto it=objvertices.begin();it<objvertices.end();face_cnt++){
+
+            Vertex* v1=&(*it++);
+            Vertex* v2=&(*it++);
+            Vertex* v3=&(*it++);
+
+            // assembly primitive
+            sdptr_->assemblePrimitive(v1,v2,v3);
+
+            // binds the material if it has one
+            int midx=objmtlidx[face_cnt];
+            if(midx>=0 && midx<objmtls.size()){
+                sdptr_->bindMaterial(objmtls[midx]);
+            }else{
+                sdptr_->bindMaterial(nullptr);
             }
-            int primitive_num=pipelineClipping(in,out);
-            if(primitive_num==0) 
-                continue;
-            
-            for(int t=0;t<primitive_num;++t){
-                Vertex* v1=&out[t*3+0];
-                Vertex* v2=&out[t*3+1];
-                Vertex* v3=&out[t*3+2];
-                // assembly primitive
-                sdptr_->assemblePrimitive(v1,v2,v3);
-                // clip space => NDC => screen space 
-                sdptr_->vertex2Screen(*v1);
-                sdptr_->vertex2Screen(*v2);
-                sdptr_->vertex2Screen(*v3);
-
-                // back culling
-                if(setting_.back_culling&&obj->isBackCulling()){
-                    glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
-                    glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
-                    if(backCulling(norm,dir)==true){
-                        continue;
-                    }
-                }
-
-                // the primitive binds the material if it has one
-                int midx=objmtlidx[face_cnt];
-                if(midx>=0 && midx<objmtls.size()){
-                    sdptr_->bindMaterial(objmtls[midx]);
-                }else{
-                    sdptr_->bindMaterial(nullptr);
-                }
                 
-                // render
-                switch(otype){
-                    case PrimitiveType::LINE:
-                        // drawLine();
-                        break;
-                    case PrimitiveType::MESH:
-                        if(setting_.scan_convert)
-                            drawTriangleScanLine();
-                        else
-                            drawTriangleNaive();
-                        break;
-                    default:
-                        break;
-                }
-            } // end for-primitive_num
+            // render
+            assert(otype==PrimitiveType::MESH);
+            if(setting_.bvh_hzb||setting_.easy_hzb) drawTriangleHZB();
+            else if(setting_.scan_convert)  drawTriangleScanLine();
+            else    drawTriangleNaive();
 
-        }// end for-objindices
-
-#ifdef TIME_RECORD
-        timer_.stop("120.Rasterize phrase");
-#endif
+        }// end for-objvertices
 
     }// end of for-asinstances
 
-    // end of a frame
+}
 
-    if(setting_.hzb_flag)
-        hzb_->prinCNT();
+/*
+bool Render::mapWorldBox2ScreenBox(const BVHnode& node,const glm::mat4& transition,AABB3d& sbox){
+    glm::vec3 bmin=node.bbox.min;
+    glm::vec3 bmax=node.bbox.max;
+    std::vector<glm::vec3> bboxpoints={bmin,{bmin.x,bmin.y,bmax.z},{bmin.x,bmax.y,bmax.z},{bmin.x,bmax.y,bmin.z},
+                        {bmax.x,bmin.y,bmin.z},{bmax.x,bmin.y,bmax.z},                 bmax,{bmax.x,bmax.y,bmin.z}};
 
-    if(setting_.show_tlas){
-        showTLAS();
-    }else if(setting_.show_blas){
-        for(auto& ins:asinstances)
-            showBLAS(ins);
+    AABB3d insbox;
+    // find the screen space aabb3d
+    for(auto& p:bboxpoints){
+        auto newp=transition*glm::vec4(p,1);
+        if(newp.w<=0){
+            // part of the box is behind the camera
+            return false;
+        }
+        p=mat_viewport_*(newp/newp.w);
+        for(int i=0;i<3;++i){
+            insbox.min[i]=std::min(insbox.min[i],p[i]);
+            insbox.max[i]=std::max(insbox.max[i],p[i]);
+        }
+    }
+
+    insbox.clipAABB(box3d_);
+
+    // the box is invalid
+    if(insbox.min.x>=insbox.max.x||insbox.min.y>=insbox.max.y){
+        return false;
+    }
+
+    sbox=insbox;
+    return true;
+}
+*/
+
+
+void Render::pipelineHZB_BVH(){
+
+#ifdef TIME_RECORD
+    timer_.start("110.pipelineGeometryPhase");
+#endif
+
+    pipelineGeometryPhase();
+    
+#ifdef TIME_RECORD
+    timer_.stop("110.pipelineGeometryPhase");
+#endif
+
+#ifdef TIME_RECORD
+    timer_.start("120.RasterizePhaseHZB_BVH");
+#endif
+
+    pipelineRasterizePhaseHZB_BVH();
+
+#ifdef TIME_RECORD
+    timer_.stop("120.RasterizePhaseHZB_BVH");
+#endif
+
+}
+
+
+
+void Render::pipelineRasterizePhaseHZB_BVH(){
+
+#ifdef TIME_RECORD
+    timer_.start("121.updateSBox");
+#endif
+    // update bvh in screenspace
+    auto& tlas=scene_.getTLAS();
+    auto& tlas_tree=(*tlas.tree_);
+
+    tlas.TLASupdateSBox();
+
+#ifdef TIME_RECORD
+    timer_.stop("121.updateSBox");
+#endif
+
+#ifdef TIME_RECORD
+    timer_.start("122.DfsTlas_BVHwithHZB");
+#endif
+
+    DfsTlas_BVHwithHZB(tlas_tree,scene_.getAllInstances(),0);
+    std::cout<<"TODO!!!\n";
+
+#ifdef TIME_RECORD
+    timer_.stop("122.DfsTlas_BVHwithHZB");
+#endif
+
+}
+
+void Render::DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vector<ASInstance>& instances,uint32_t nodeIdx){
+
+     if(nodeIdx>=tree.size()){
+        std::cerr<<"Render::DfsTlas_BVHwithHZB: nodeIdx>=tree.size()!\n";
+        exit(-1);
+    }
+
+    auto& node=tree[nodeIdx];
+
+    // IF the box is refused by HZB
+    if(hzb_->rapidRefuseBox(node.sbox)){
+        return;
+    }
+    
+    // ELSE dive deeper...
+    if(node.left>0&&node.right>0){
+        // select a nearer node as a prior candidate
+        AABB3d sbox_left=tree[node.left].sbox;
+        AABB3d sbox_right=tree[node.right].sbox;
+        if(sbox_left.min.z<sbox_right.min.z){
+            DfsTlas_BVHwithHZB(tree,instances,node.left);
+            DfsTlas_BVHwithHZB(tree,instances,node.right);
+        }
+        else{
+            DfsTlas_BVHwithHZB(tree,instances,node.right);
+            DfsTlas_BVHwithHZB(tree,instances,node.left);
+        }
+    }
+    else if(node.left==-1&&node.right==-1){
+        auto& inst=instances[node.prmitive_start];
+        auto otype=inst.blas_->object_->getPrimitiveType();
+
+        sdptr_->setShaderType(inst.shader_);
+        sdptr_->setPrimitiveType(otype);
+        assert(otype==PrimitiveType::MESH);
+
+        DfsBlas_BVHwithHZB(inst,0);
+    }
+    else if(node.left==-1&&node.right!=-1){
+        DfsTlas_BVHwithHZB(tree,instances,node.right);
+    }
+    else if(node.right==-1&&node.left!=-1){
+        DfsTlas_BVHwithHZB(tree,instances,node.left);
     }
 }
 
-void Render::pipelineHZBtraverseBVH(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS){
+void Render::DfsBlas_BVHwithHZB(const ASInstance& inst,int32_t nodeIdx){
+    const std::vector<BVHnode>& tree=*inst.blas_->tree_;
+    
+     if(nodeIdx>=tree.size()){
+        std::cerr<<"Render::DfsTlas_BVHwithHZB: nodeIdx>=tree.size()!\n";
+        exit(-1);
+    }
+
+    const BVHnode& node=tree[nodeIdx];
+
+    // IF the box is refused by HZB
+    if(hzb_->rapidRefuseBox(node.sbox)){
+        return;
+    }
+    
+    // ELSE dive deeper...
+    if(node.left>0&&node.right>0){
+        // select a nearer node as the prior candidate
+        AABB3d sbox_left=tree[node.left].sbox;
+        AABB3d sbox_right=tree[node.right].sbox;
+        if(sbox_left.min.z<sbox_right.min.z){
+            DfsBlas_BVHwithHZB(inst,node.left);
+            DfsBlas_BVHwithHZB(inst,node.right);
+        }
+        else{
+            DfsBlas_BVHwithHZB(inst,node.right);
+            DfsBlas_BVHwithHZB(inst,node.left);
+        }
+    }
+    else if(node.left==-1&&node.right==-1){
+       // reach the leaf: raseterize these triangles.
+
+        int st_primitive=tree[nodeIdx].prmitive_start;
+
+        for(int i=0;i<tree[nodeIdx].primitive_num;++i){
+
+            uint32_t face_idx=inst.blas_->primitives_indices_->at(st_primitive+i);
+            auto& cur_face=inst.primitives_buffer_->at(face_idx);
+
+            if(cur_face.clipflag_==ClipFlag::clipped||cur_face.clipflag_==ClipFlag::accecpted){
+
+                int32_t st_ver=cur_face.vertex_start_pos_;
+                auto& instvertices=*inst.vertices_;
+                auto& objmtls=inst.blas_->object_->getMtls();
+
+                for(int v=0;v<cur_face.vertex_num_;v+=3){ // >= 3 vertivces
+
+                    Vertex* v1=&instvertices[st_ver+v+0];
+                    Vertex* v2=&instvertices[st_ver+v+1];
+                    Vertex* v3=&instvertices[st_ver+v+2];
+
+                    // assembly primitive
+                    sdptr_->assemblePrimitive(v1,v2,v3);
+
+                    // binds the material if it has one
+                    int midx=cur_face.mtlidx_;
+                    if(midx>=0 && midx<objmtls.size()){
+                        sdptr_->bindMaterial(objmtls[midx]);
+                    }else{
+                        sdptr_->bindMaterial(nullptr);
+                    }
+                        
+                    // render
+                    drawTriangleHZB();
+
+                }
+
+            }
+        }
+
+    }
+    else if(node.left==-1&&node.right!=-1){
+        DfsBlas_BVHwithHZB(inst,node.right);
+    }
+    else if(node.right==-1&&node.left!=-1){
+        DfsBlas_BVHwithHZB(inst,node.left);
+    }
 
 }
+
 
 void Render::showTLAS(){
     auto&tlas=scene_.getTLAS();
@@ -296,7 +549,7 @@ void Render::showTLAS(){
 
 void Render::showBLAS(const ASInstance& inst){
     auto&blas=inst.blas_;
-    auto&blas_tree=*(blas->nodes_);
+    auto&blas_tree=*(blas->tree_);
     if(blas_tree.size()){
         traverseBVHandDraw(blas_tree,0,false,inst.modle_);
     }
@@ -404,7 +657,7 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     int error2=0;
     int y=t1.y;
 
-    auto& depthbuf=setting_.hzb_flag?hzb_->getFinesetZbuffer():*zbuffer_;
+    auto& depthbuf=(setting_.easy_hzb||setting_.bvh_hzb)?hzb_->getFinesetZbuffer():*zbuffer_;
 
     for(int x=t1.x;x<=t2.x;++x){
         // TODO: 忘记透视矫正了欸！
@@ -491,6 +744,125 @@ void Render::handleMouseInput(double xoffset, double yoffset) {
     camera_.processMouseMovement(static_cast<float>(xoffset), static_cast<float>(yoffset));
 }
 
+void Render::printProfile(){
+    hzb_culled_face_num_=total_face_num_-shaded_face_num_-back_culled_face_num_-clipped_face_num_;
+
+    std::cout<<"-------------- face counter  -----------------\n";
+    std::cout<<"total         ="<<total_face_num_<<std::endl;
+    std::cout<<"shaded        ="<<shaded_face_num_<<std::endl;
+    std::cout<<"back_culled   ="<<back_culled_face_num_<<std::endl;
+    std::cout<<"clipped       ="<<clipped_face_num_<<std::endl;
+    std::cout<<"hzb_culled    ="<<hzb_culled_face_num_<<std::endl;
+}
+
+
+/*
+
+void Render::pipelineNaive(){
+    
+    // put each instance into the pipeline. TODO: frustrum clipping~
+    auto& asinstances=scene_.getAllInstances();
+    for(auto& ins:asinstances){
+        auto& obj=ins.blas_->object_;
+        auto& mat_model=ins.modle_;       
+        auto otype=obj->getPrimitiveType();
+        auto& objvertices=obj->getVertices();
+        auto& objindices=obj->getIndices();
+        auto& objfacenorms=obj->getFaceNorms();
+        auto& objmtls=obj->getMtls();
+        auto& objmtlidx=obj->getMtlIdx();
+
+        // init shader for the current instance
+        glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
+        glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
+        sdptr_->bindMVP(&mvp);
+        sdptr_->bindViewport(&mat_viewport_);
+        sdptr_->bindNormalMat(&normal_mat);
+        sdptr_->bindModelMat(&mat_model);
+        sdptr_->setShaderType(ins.shader_);
+        sdptr_->setPrimitiveType(otype);
+
+#ifdef TIME_RECORD
+        timer_.start("110.MVP");
+#endif
+        // MVP => clip space
+        for(auto& v:objvertices){
+            sdptr_->vertexShader(v);
+        }
+
+#ifdef TIME_RECORD
+        timer_.stop("110.MVP");
+#endif
+        // for each primitive
+#ifdef TIME_RECORD
+        timer_.start("120.Rasterize phrase");
+#endif
+        int face_cnt=0;
+        for(auto it=objindices.begin();it!=objindices.end();++face_cnt){
+            // do clipping in clip space and reassemble primitives
+            std::vector<Vertex> in,out;
+            for(int t=0;t<3;++t){
+                in.push_back(objvertices[*it++]);
+            }
+            int primitive_num=pipelineClipping(in,out);
+            if(primitive_num==0) 
+                continue;
+            
+            for(int t=0;t<primitive_num;++t){
+                Vertex* v1=&out[t*3+0];
+                Vertex* v2=&out[t*3+1];
+                Vertex* v3=&out[t*3+2];
+                // assembly primitive
+                sdptr_->assemblePrimitive(v1,v2,v3);
+                // clip space => NDC => screen space 
+                sdptr_->vertex2Screen(*v1);
+                sdptr_->vertex2Screen(*v2);
+                sdptr_->vertex2Screen(*v3);
+
+                // back culling
+                if(setting_.back_culling&&obj->isBackCulling()){
+                    glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
+                    glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
+                    if(backCulling(norm,dir)==true){
+                        continue;
+                    }
+                }
+
+                // the primitive binds the material if it has one
+                int midx=objmtlidx[face_cnt];
+                if(midx>=0 && midx<objmtls.size()){
+                    sdptr_->bindMaterial(objmtls[midx]);
+                }else{
+                    sdptr_->bindMaterial(nullptr);
+                }
+                
+                // render
+                switch(otype){
+                    case PrimitiveType::LINE:
+                        // drawLine();
+                        break;
+                    case PrimitiveType::MESH:
+                        if(setting_.bvh_hzb||setting_.easy_hzb) drawTriangleHZB();
+                        else if(setting_.scan_convert)  drawTriangleScanLine();
+                        else    drawTriangleNaive();
+                        break;
+                    default:
+                        break;
+                }
+            } // end for-primitive_num
+
+        }// end for-objindices
+
+#ifdef TIME_RECORD
+        timer_.stop("120.Rasterize phrase");
+#endif
+
+    }// end of for-asinstances
+
+}
+
+
+*/
 
 /*
 

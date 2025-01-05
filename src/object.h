@@ -36,12 +36,13 @@ public:
     
     inline std::string getName()const{return name_;}
     inline PrimitiveType getPrimitiveType()const{ return type_;}
+    unsigned long long getFaceNum()const{return face_num_;}
 
     inline int getVerticesNum()const{ return vertices_.size(); }
 
     inline bool isBackCulling()const{ return do_back_culling_; }
     inline void setBackCulling(bool flag){do_back_culling_=flag;}
-
+    
 
 protected:
     std::string name_;
@@ -59,7 +60,12 @@ protected:
     // each triangle's material index pointer
     std::vector<int> mtlidx_;
 
+    // the total number of faces, hence vertices num is trible
+    unsigned long long face_num_=0;  
+
     bool do_back_culling_=true;
+
+    
 
 };
 
@@ -71,8 +77,7 @@ public:
   
     // note the obj must be triangulated
     void initObject(const tinyobj::ObjReader& reader,std::string filepath,bool flip_normals=false,bool backculling=true)override;
-    unsigned long long getFaceNum()const{return face_num_;}
-
+    
     void clear() override{
         vertices_.clear();
     }
@@ -83,12 +88,6 @@ public:
     bool has_normal_=true;
     bool has_uv_=true;
 
-private:
-
-    // the total number of faces, hence vertices num is trible
-    unsigned long long face_num_=0;   
-
-    
 };
 
 class Line:public ObjectDesc{

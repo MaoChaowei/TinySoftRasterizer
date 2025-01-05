@@ -1,5 +1,7 @@
 #include"scanline.h"
 
+using namespace ScanLine;
+
 EdgeNode::EdgeNode(const Vertex* top,const Vertex* down,bool step):top_vertex_(top),down_vertex_(down),init_step_y_(step){
     x_=top->s_pos_.x;
     float dy=floor(top_vertex_->s_pos_.y)-floor(down_vertex_->s_pos_.y);

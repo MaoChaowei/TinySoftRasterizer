@@ -11,25 +11,33 @@ const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
 
 
 int main(void) {
-    // init my render
+
     Render render;
-    // render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);
-    render.loadDemoScene("CornellBox",ShaderType::Depth);
-    // render.loadDemoScene("SingleBox",ShaderType::Normal);
-    
+    render.setBVHLeafSize(12);
     render.setViewport(1024,1.0/1.0,60.0);
+
     auto& camera=render.getCamera();
     camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
 
+    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);
+    // render.loadDemoScene("CornellBox",ShaderType::Depth);
+    // render.loadDemoScene("SingleBox",ShaderType::Normal);
+    
     
     RenderSetting setting;
     setting.back_culling=true;
     setting.earlyz_test=true;
-    setting.hzb_flag=true;//false;
+
+    setting.easy_hzb=false;
     setting.scan_convert=false;
+    setting.bvh_hzb=true;
+
     setting.show_tlas=true;
     setting.show_blas=false;
+    setting.profile_report=true;
+    
+    render.pipelineInit(setting);
 
 
     // init glfw window and glad
@@ -45,7 +53,7 @@ int main(void) {
     auto curTime=lastTime;
 
     // gameloop
-    render.pipelineInit(setting);
+
     auto& colorbuffer=render.getColorBuffer();
     while (!window.shouldClose()) {
         /* RENDERING */

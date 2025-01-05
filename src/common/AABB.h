@@ -53,6 +53,30 @@ struct AABB3d{
 
     }
 
+    AABB3d& operator=(const AABB3d& box){
+        if(this==&box) return *this;
+        
+        min=box.min;
+        max=box.max;
+        return *this;
+    }
+
+
+    void reset(){
+        min={srender::INF,srender::INF,srender::INF};
+        max={-srender::INF,-srender::INF,-srender::INF};
+    }
+
+    void addPoint(const glm::vec3& point){
+        min.x=std::min(min.x,point.x);
+        min.y=std::min(min.y,point.y);
+        min.z=std::min(min.z,point.z);
+        
+        max.x=std::max(max.x,point.x);
+        max.y=std::max(max.y,point.y);
+        max.z=std::max(max.z,point.z);
+    }
+
     void expand(const AABB3d& box){
         min.x=std::min(min.x,box.min.x);
         min.y=std::min(min.y,box.min.y);
@@ -100,5 +124,4 @@ struct AABB3d{
         return *this;
     }
     
-
 };

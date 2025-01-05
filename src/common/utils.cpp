@@ -24,3 +24,13 @@ bool isEqual(float a, float b, float eps){
 }
 
 }
+
+std::ostream& operator<<(std::ostream& os, const AABB3d& aabb)
+{
+    os << "AABB3d { min = ("
+       << aabb.min.x << ", " << aabb.min.y << ", " << aabb.min.z
+       << "), max = ("
+       << aabb.max.x << ", " << aabb.max.y << ", " << aabb.max.z
+       << ") }\n";
+    return os;
+}

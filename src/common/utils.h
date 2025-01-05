@@ -1,5 +1,7 @@
 # pragma once
 #include"common_include.h"
+#include"AABB.h"
+
 
 // some small functions
 namespace utils{
@@ -23,4 +25,7 @@ void lowerVec3(glm::vec3& v);
 void upperVec3(glm::vec3& v);
 
 bool isEqual(float a, float b, float eps=srender::EPSILON);
+
 }
+
+std::ostream& operator<<(std::ostream& os, const AABB3d& aabb);
