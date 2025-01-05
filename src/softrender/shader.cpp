@@ -31,9 +31,13 @@ void Shader::vertex2Screen(Vertex& v ){
 }
 
 // use this function to maintain a aabb3d box in screenspace
-void Shader::vertex2Screen(Vertex& v,AABB3d& box){
+void Shader::vertex2Screen(Vertex& v,AABB3d& box,AABB3d& screen_box){
     // perspective division and viewport transformation
     v.s_pos_=(*viewport_)*(v.c_pos_/v.c_pos_.w);     
+
+    // ensure all the vertices went through this process is inside the screen.
+    v.s_pos_.x=std::clamp(v.s_pos_.x,screen_box.min.x,screen_box.max.x);
+    v.s_pos_.y=std::clamp(v.s_pos_.y,screen_box.min.y,screen_box.max.y);
 
     box.addPoint(v.s_pos_);
 
@@ -47,7 +51,7 @@ float Shader::fragmentDepth(uint32_t x,uint32_t y){
     glm::vec3 bary=utils::getBaryCenter(v1->s_pos_,v2->s_pos_,v3->s_pos_,glm::vec2(x,y));
     glm::vec3 correct_bary;
     if(bary.x<0||bary.y<0||bary.z<0)
-        return 2;
+        return 2;   // farther than far plane
     
     // perspective correct interpolation
     for(int i=0;i<3;++i)
@@ -239,7 +243,7 @@ void Shader::lightShader(){
 }
 
 void Shader::depthShader(){
-    float dist=(2.0*far_plane_*near_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));        // from ndc Zn to view space -Ze(since Zn is non-linear!)
+    float dist=(2.0*near_plane_*far_plane_)/(-content_.depth*(far_plane_-near_plane_)+(far_plane_+near_plane_));        // from ndc Zn to view space -Ze(since Zn is non-linear!)
     content_.color=glm::vec4( (255.0*(dist-far_plane_))/(near_plane_-far_plane_));
 }
 

@@ -18,7 +18,7 @@ void Render::pipelineInit(const RenderSetting & setting){
 
     // 1. init scene as
     scene_.buildTLAS();
-    total_face_num_=scene_.getFaceNum();
+    // total_face_num_=scene_.getFaceNum();
 
     // 2. init shader
     sdptr_=std::make_shared<Shader>();
@@ -149,7 +149,7 @@ void Render::drawTriangleHZB(){
 
 void Render::drawTriangleScanLine(){
     ++shaded_face_num_;
-    
+
     if(ShaderType::Frame==sdptr_->getType()){
         AABB2d aabb;
         glm::vec3 t[3];
@@ -242,7 +242,7 @@ void Render::pipelineGeometryPhase(){
 
         // clip space => NDC => screen space 
         for(auto& newv:*ins.vertices_){
-            sdptr_->vertex2Screen(newv,ins.screenBBox_);
+            sdptr_->vertex2Screen(newv,ins.screenBBox_,box3d_);
         }
     }
 
@@ -404,7 +404,6 @@ void Render::pipelineRasterizePhaseHZB_BVH(){
 #endif
 
     DfsTlas_BVHwithHZB(tlas_tree,scene_.getAllInstances(),0);
-    std::cout<<"TODO!!!\n";
 
 #ifdef TIME_RECORD
     timer_.stop("122.DfsTlas_BVHwithHZB");

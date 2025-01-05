@@ -69,7 +69,7 @@ public:
             hzb_->clear();
         
         if(setting_.profile_report){
-            total_face_num_=scene_.getFaceNum();
+            total_face_num_=0;
             shaded_face_num_=0;
             back_culled_face_num_=0;
             hzb_culled_face_num_=0;

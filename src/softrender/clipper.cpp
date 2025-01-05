@@ -187,6 +187,7 @@ int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>&
 // backculling and frustrum culling
 void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal_mat){
     instance.refreshVertices();
+    total_face_num_+=instance.blas_->object_->getFaceNum();
 
     auto& obj=instance.blas_->object_;
     const std::vector<Vertex>& in_vertices=obj->getconstVertices();

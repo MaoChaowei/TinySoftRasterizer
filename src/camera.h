@@ -67,7 +67,7 @@ public:
 		half_near_width_=aspect_ratio_*half_near_height_;
 	}
 	
-    void updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=16.0/9.0,int image_width=1000);
+    void updateCamera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov=60,float ratio=1.0,int image_width=1024);
 
     glm::mat4 getViewMatrix()const;
 	glm::mat4 getPerspectiveMatrix()const;

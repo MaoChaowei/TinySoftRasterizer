@@ -20,8 +20,8 @@ int main(void) {
     camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
 
-    render.loadDemoScene("Bunny",ShaderType::BlinnPhone|ShaderType::ORDER);
-    // render.loadDemoScene("CornellBox",ShaderType::Depth);
+    // render.loadDemoScene("Bunnys",ShaderType::BlinnPhone|ShaderType::ORDER);
+    render.loadDemoScene("CornellBox",ShaderType::Depth);
     // render.loadDemoScene("SingleBox",ShaderType::Normal);
     
     
@@ -33,7 +33,7 @@ int main(void) {
     setting.scan_convert=false;
     setting.bvh_hzb=true;
 
-    setting.show_tlas=true;
+    setting.show_tlas=false;
     setting.show_blas=false;
     setting.profile_report=true;
     

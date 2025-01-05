@@ -51,6 +51,11 @@ public:
 
     // Refuse a 3d-box in screen space.
     bool rapidRefuseBox(const AABB3d& box){
+        AABB3d illegle_box;
+        if(box.min==illegle_box.min&&box.max==illegle_box.max){
+            return true;
+        }
+        
         float nearest_depth=box.min.z;
 
         float box_length=std::max(box.max.y-box.min.y,box.max.x-box.min.x);

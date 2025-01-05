@@ -18,8 +18,8 @@ public:
 
     void setBVHsize(uint32_t leaf_num){leaf_num_=leaf_num;}
 
-    void addObjInstance(std::string filename, glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
-        // create BLAS for obj if it hasn't been built.
+    // create BLAS for obj if it hasn't been built.
+    void addObjInstance_SpaceFriendly(std::string filename, glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
         if(blas_map_.find(filename)==blas_map_.end()){
             // read from objfile
             ObjLoader objloader(filename,flipn,backculling);
@@ -33,6 +33,23 @@ public:
         }
         // create ASInstance for obj
         tlas_->all_instances_.emplace_back( blas_map_[filename],model,shader );
+    }
+
+    // create BLAS for obj even if it has been built before.
+    void addObjInstance(std::string filename, glm::mat4& model,ShaderType shader,bool flipn=false,bool backculling=true){
+
+        // read from objfile
+        ObjLoader objloader(filename,flipn,backculling);
+        std::shared_ptr<ObjectDesc> obj=std::move(objloader.getObjects());
+        // create blas
+        std::shared_ptr<BLAS> blas=std::make_shared<BLAS>(obj,leaf_num_);
+
+        objloader.updateNums(vertex_num_,face_num_);
+        std::cout<<"Current vertex num: "<<vertex_num_<<std::endl;
+        std::cout<<"Current face num: "<<face_num_<<std::endl;
+        
+        // create ASInstance for obj
+        tlas_->all_instances_.emplace_back( blas,model,shader );
     }
 
     void buildTLAS(){

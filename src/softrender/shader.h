@@ -105,7 +105,7 @@ public:
      */
     void vertexShader(Vertex& v );
     void vertex2Screen(Vertex& v );
-    void vertex2Screen(Vertex& v,AABB3d& box);
+    void vertex2Screen(Vertex& v,AABB3d& box,AABB3d& screen_box);
 
     /**
      * @brief shading the fragment with properties set in `ShaderType`.

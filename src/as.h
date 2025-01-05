@@ -93,25 +93,6 @@ public:
                         sbox.addPoint(this->vertices_->at(st_ver+v).s_pos_);
                     }
                 }
-                // switch(primitives_buffer_->at(idx).clipflag_){
-                //     case ClipFlag::refused:
-                //         break;
-                //     case ClipFlag::accecpted:
-                //         int32_t st_ver=primitives_buffer_->at(idx).vertex_start_pos_;
-                //         for(int v=0;v<primitives_buffer_->at(idx).vertex_num_;++v){ // 3 vertivces
-                //             sbox.addPoint(this->vertices_->at(st_ver+v).s_pos_);
-                //         }
-                //         break;
-                //     case ClipFlag::clipped:
-                //         int32_t st_ver=primitives_buffer_->at(idx).vertex_start_pos_;
-                //         for(int v=0;v<primitives_buffer_->at(idx).vertex_num_;++v){ // >= 3 vertivces
-                //             sbox.addPoint(this->vertices_->at(st_ver+v).s_pos_);
-                //         }
-                //         break;
-                //     default:
-                //         std::cerr<<"updateScreenBox in ASInstance, unknown clipflag type.\n";
-                //         break;
-                // }
             }
             return;
         }
