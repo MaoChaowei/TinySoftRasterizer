@@ -7,6 +7,8 @@ void Window::framebuffer_size_callback(GLFWwindow* window, int width, int height
 } 
 
 void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if(io->WantCaptureKeyboard) return; // dear imgui wants to use this inputs.
+
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
@@ -18,6 +20,8 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 }
 
 void Window::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    if(io->WantCaptureMouse) return;    // dear imgui wants to use this inputs.
+
     Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
     if (!instance || !instance->render_) return;
 
@@ -54,6 +58,8 @@ int Window::init(const char* name,int width,int height)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // 不可缩放
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); 
 
 	window_ = glfwCreateWindow(width, height, name, NULL, NULL);
 	if (!window_) {
@@ -80,10 +86,12 @@ int Window::init(const char* name,int width,int height)
     glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
     glfwSetKeyCallback(window_, keyCallback);  
     glfwSetCursorPosCallback(window_, mouseCallback);
-    // glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // 捕获鼠标
 
     this->initData();
     this->initShaderProgram();    // init shader program
+
+    // initialize imgui.
+    initImGui();
 
 	return 0;
 }

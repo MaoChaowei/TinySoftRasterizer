@@ -29,3 +29,4 @@ bool isEqual(float a, float b, float eps=srender::EPSILON);
 }
 
 std::ostream& operator<<(std::ostream& os, const AABB3d& aabb);
+

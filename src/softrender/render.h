@@ -11,33 +11,15 @@
 #include"utils.h"
 #include"light.h"
 #include"scanline.h"
-#include <GLFW/glfw3.h>
-
-enum class ClipPlane {
-    Left,
-    Right,
-    Bottom,
-    Top,
-    Near,
-    Far
-};
-
-struct RenderSetting{
-    bool show_tlas=false;
-    bool show_blas=false;
-    bool bvh_hzb=false;
-    bool easy_hzb=false;
-    bool scan_convert=false;
-
-    bool back_culling=true;
-    bool earlyz_test=true;
-    bool profile_report=true;
-};
+#include"interface.h"
 
 class Render{
 public:
+
     Render():camera_(),colorbuffer_(std::make_shared<ColorBuffer>(camera_.getImageWidth(),camera_.getImageHeight())),
-            zbuffer_(std::make_shared<DepthBuffer>(camera_.getImageWidth(),camera_.getImageHeight())){
+            zbuffer_(std::make_shared<DepthBuffer>(camera_.getImageWidth(),camera_.getImageHeight())),
+            info_(),setting_(info_.setting_ ),timer_(info_.timer_),profile_(info_.profile_){
+
         box2d_.min={0,0};
         box2d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1};
         box3d_.min={0,0,-1};
@@ -65,15 +47,15 @@ public:
     inline void cleanFrame(){
         colorbuffer_->clear();
         zbuffer_->clear();
-        if(setting_.easy_hzb||setting_.bvh_hzb)
+        if(setting_.rasterize_type == RasterizeType::Easy_hzb||setting_.rasterize_type == RasterizeType::Bvh_hzb)
             hzb_->clear();
         
         if(setting_.profile_report){
-            total_face_num_=0;
-            shaded_face_num_=0;
-            back_culled_face_num_=0;
-            hzb_culled_face_num_=0;
-            clipped_face_num_=0;
+            profile_.total_face_num_=0;
+            profile_.shaded_face_num_=0;
+            profile_.back_culled_face_num_=0;
+            profile_.hzb_culled_face_num_=0;
+            profile_.clipped_face_num_=0;
         }
     }
 
@@ -82,12 +64,12 @@ public:
     inline const Scene& getScene()const{ return scene_;}
 
     // PIPELINE
-    void pipelineInit(const RenderSetting & setting=RenderSetting());
+    void pipelineInit();
     void pipelineBegin();
 
     void pipelineGeometryPhase();
 
-    void pipelineNaive();
+    void pipelinePerInstance();
     void pipelineRasterizePhasePerInstance();
 
     void pipelineHZB_BVH();
@@ -101,7 +83,8 @@ public:
     bool backCulling(const glm::vec3& face_norm,const glm::vec3& dir)const;
 
 
-    // UI
+    // INTERFACE
+    void GameLoop();
     void handleKeyboardInput(int key, int action);
     void handleMouseInput(double xoffset, double yoffset);
     void moveCamera();
@@ -125,14 +108,24 @@ private:
     void traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model=glm::mat4(1.0));
     void DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vector<ASInstance>& instances,uint32_t nodeIdx);
     void DfsBlas_BVHwithHZB(const ASInstance& inst,int32_t nodeIdx);
-    // bool mapWorldBox2ScreenBox(const BVHnode& node,const glm::mat4& vp,AABB3d& sbox);
 
     // update members accrordingly after camera's update
     void afterCameraUpdate();
 
+
+    void initRenderIoInfo(){
+        setting_.scene_filename="Bunnys_mutilights";
+        setting_.back_culling=true;
+        setting_.earlyz_test=true;
+        setting_.rasterize_type=RasterizeType::Bvh_hzb;
+        setting_.show_tlas=false;
+        setting_.show_blas=false;
+        setting_.profile_report=true;
+    }
+
 private:
     bool is_init_=false;
-    RenderSetting setting_;
+
     std::shared_ptr<Shader> sdptr_;
     std::shared_ptr<ScanLine::PerTriangleScanLiner> tri_scanliner_;
     Camera camera_;
@@ -153,12 +146,9 @@ public:
     float delta_time_;          // time spent to render last frame; (ms)
     bool keys_[1024]={0}; 
     
-    CPUTimer timer_;            // (us)
-
-    int total_face_num_=0;
-    int shaded_face_num_=0;
-    int back_culled_face_num_=0;
-    int clipped_face_num_=0;
-    int hzb_culled_face_num_=0;
+    RenderIOInfo info_;
+    RenderSetting& setting_;
+    CPUTimer& timer_;            // (us)
+    PerfCnt& profile_;
 
 };

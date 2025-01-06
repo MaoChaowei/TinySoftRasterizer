@@ -11,14 +11,16 @@ void Render::addObjInstance(std::string filename,glm::mat4& model,ShaderType sha
     scene_.addObjInstance(filename,model,shader,flipn,backculling); 
 }
 
-void Render::pipelineInit(const RenderSetting & setting){
-    // 0. init transformation
-    updateMatrix();
-    setting_=setting;
+void Render::pipelineInit(){
+    // get default setting_
+    initRenderIoInfo();
 
-    // 1. init scene as
+    // 0. load scene
+    loadDemoScene(setting_.scene_filename,setting_.shader_type);
     scene_.buildTLAS();
-    // total_face_num_=scene_.getFaceNum();
+
+    // 1. init transformation
+    updateMatrix();
 
     // 2. init shader
     sdptr_=std::make_shared<Shader>();
@@ -28,7 +30,8 @@ void Render::pipelineInit(const RenderSetting & setting){
     // 3. init rastertizer
     tri_scanliner_=std::make_shared<ScanLine::PerTriangleScanLiner>(box2d_,colorbuffer_,zbuffer_,sdptr_);
 
-    if(setting_.easy_hzb==true||setting.bvh_hzb==true){
+    if(setting_.rasterize_type == RasterizeType::Easy_hzb||
+        setting_.rasterize_type == RasterizeType::Bvh_hzb){
         hzb_=std::make_shared<HZbuffer>(camera_.getImageWidth(),camera_.getImageHeight());
 
     }
@@ -77,7 +80,7 @@ void Render::drawLine(glm::vec2 t1,glm::vec2 t2){
 
 // go through all the pixels inside the AABB, that means I didn't use coherence here
 void Render::drawTriangleNaive(){
-    ++shaded_face_num_;
+    ++profile_.shaded_face_num_;
 
     glm::vec3 t[3];
     for(int i=0;i<3;++i)
@@ -110,7 +113,7 @@ void Render::drawTriangleNaive(){
 }
 
 void Render::drawTriangleHZB(){
-    ++shaded_face_num_;
+    ++profile_.shaded_face_num_;
     glm::vec3 t[3];
     for(int i=0;i<3;++i)
         t[i]=sdptr_->getScreenPos(i);
@@ -128,7 +131,7 @@ void Render::drawTriangleHZB(){
     }
     else{
         if(hzb_->rapidRefuseBox(aabb)){
-            --shaded_face_num_;
+            --profile_.shaded_face_num_;
             return;
         }
 
@@ -148,7 +151,7 @@ void Render::drawTriangleHZB(){
 
 
 void Render::drawTriangleScanLine(){
-    ++shaded_face_num_;
+    ++profile_.shaded_face_num_;
 
     if(ShaderType::Frame==sdptr_->getType()){
         AABB2d aabb;
@@ -185,6 +188,16 @@ void Render::pipelineBegin(){
         std::cerr<<"pipelineBegin: didn't use `pipelineInit` to initialize.\n";
         return;
     }
+    if(setting_.scene_change==true){
+        loadDemoScene(setting_.scene_filename,setting_.shader_type);
+        scene_.buildTLAS();
+    }
+    if(setting_.shader_change==true){
+        for(auto& inst:scene_.getAllInstances()){
+            if(inst.shader_!=ShaderType::Light)
+                inst.shader_=setting_.shader_type;
+        }
+    }
 
     if(camera_.needUpdateView())
         updateViewMatrix();
@@ -194,10 +207,10 @@ void Render::pipelineBegin(){
     sdptr_->bindLights(scene_.getLights());
 
     // start pipeline
-    if(setting_.bvh_hzb){
+    if(setting_.rasterize_type==RasterizeType::Bvh_hzb){
         pipelineHZB_BVH();
     }else{
-        pipelineNaive();
+        pipelinePerInstance();
     }
 
 
@@ -249,7 +262,7 @@ void Render::pipelineGeometryPhase(){
 }
 
 
-void Render::pipelineNaive(){
+void Render::pipelinePerInstance(){
 
 #ifdef TIME_RECORD
     timer_.start("110.GeometryPhase");
@@ -313,9 +326,13 @@ void Render::pipelineRasterizePhasePerInstance(){
                 
             // render
             assert(otype==PrimitiveType::MESH);
-            if(setting_.bvh_hzb||setting_.easy_hzb) drawTriangleHZB();
-            else if(setting_.scan_convert)  drawTriangleScanLine();
-            else    drawTriangleNaive();
+            if(setting_.rasterize_type == RasterizeType::Easy_hzb) drawTriangleHZB();
+            else if(setting_.rasterize_type == RasterizeType::Scan_convert)  drawTriangleScanLine();
+            else if(setting_.rasterize_type == RasterizeType::Naive)   drawTriangleNaive();
+            else{
+                std::cerr<<"unknown RasterizeType::setting_.rasterize_type\n";
+                exit(-1);
+            }
 
         }// end for-objvertices
 
@@ -656,7 +673,9 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     int error2=0;
     int y=t1.y;
 
-    auto& depthbuf=(setting_.easy_hzb||setting_.bvh_hzb)?hzb_->getFinesetZbuffer():*zbuffer_;
+    auto& depthbuf=(setting_.rasterize_type==RasterizeType::Easy_hzb||setting_.rasterize_type==RasterizeType::Bvh_hzb)
+                    ? hzb_->getFinesetZbuffer()
+                    :*zbuffer_;
 
     for(int x=t1.x;x<=t2.x;++x){
         // TODO: 忘记透视矫正了欸！
@@ -724,34 +743,18 @@ void Render::afterCameraUpdate(){
     box3d_.max={camera_.getImageWidth()-1,camera_.getImageHeight()-1,1};
 }
 
-void Render::handleKeyboardInput(int key, int action) {
-    if (action == GLFW_PRESS || action == GLFW_REPEAT)
-        keys_[key]=true;
-    else if(action==GLFW_RELEASE)
-        keys_[key]=false;
-}
-
-void Render::moveCamera(){
-    if (keys_[GLFW_KEY_W]) camera_.processKeyboard(CameraMovement::FORWARD,delta_time_);
-    if (keys_[GLFW_KEY_S]) camera_.processKeyboard(CameraMovement::BACKWARD,delta_time_);
-    if (keys_[GLFW_KEY_A]) camera_.processKeyboard(CameraMovement::LEFT,delta_time_);
-    if (keys_[GLFW_KEY_D]) camera_.processKeyboard(CameraMovement::RIGHT,delta_time_);
-    if (keys_[GLFW_KEY_TAB]) camera_.processKeyboard(CameraMovement::REFRESH,delta_time_);
-}
-
-void Render::handleMouseInput(double xoffset, double yoffset) {
-    camera_.processMouseMovement(static_cast<float>(xoffset), static_cast<float>(yoffset));
-}
-
 void Render::printProfile(){
-    hzb_culled_face_num_=total_face_num_-shaded_face_num_-back_culled_face_num_-clipped_face_num_;
+    profile_.hzb_culled_face_num_=profile_.total_face_num_
+                                -profile_.shaded_face_num_
+                                -profile_.back_culled_face_num_
+                                -profile_.clipped_face_num_;
 
     std::cout<<"-------------- face counter  -----------------\n";
-    std::cout<<"total         ="<<total_face_num_<<std::endl;
-    std::cout<<"shaded        ="<<shaded_face_num_<<std::endl;
-    std::cout<<"back_culled   ="<<back_culled_face_num_<<std::endl;
-    std::cout<<"clipped       ="<<clipped_face_num_<<std::endl;
-    std::cout<<"hzb_culled    ="<<hzb_culled_face_num_<<std::endl;
+    std::cout<<"total         ="<<profile_.total_face_num_<<std::endl;
+    std::cout<<"shaded        ="<<profile_.shaded_face_num_<<std::endl;
+    std::cout<<"back_culled   ="<<profile_.back_culled_face_num_<<std::endl;
+    std::cout<<"clipped       ="<<profile_.clipped_face_num_<<std::endl;
+    std::cout<<"hzb_culled    ="<<profile_.hzb_culled_face_num_<<std::endl;
 }
 
 

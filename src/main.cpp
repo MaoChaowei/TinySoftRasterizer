@@ -1,14 +1,10 @@
 #include<iostream>
 #include"window.h"
-#include <chrono>
-#include <thread>
-
 #include"render.h"
 
-
-const int TARGET_FPS = 60;
-const double FRAME_DURATION = 1000.0 / TARGET_FPS; // 单位：ms
-
+// const int TARGET_FPS = 60;
+// const double FRAME_DURATION = 1000.0 / TARGET_FPS; // ms
+ImGuiIO* Window::io=nullptr;                       // initialize static member
 
 int main(void) {
 
@@ -19,34 +15,27 @@ int main(void) {
     auto& camera=render.getCamera();
     camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
-
-    // render.loadDemoScene("Bunnys",ShaderType::BlinnPhone|ShaderType::ORDER);
-    render.loadDemoScene("CornellBox",ShaderType::Depth);
     // render.loadDemoScene("SingleBox",ShaderType::Normal);
+    // render.loadDemoScene("Bunnys",ShaderType::BlinnPhone|ShaderType::ORDER);
     
+    render.pipelineInit();
+
+    render.GameLoop();
     
-    RenderSetting setting;
-    setting.back_culling=true;
-    setting.earlyz_test=true;
-
-    setting.easy_hzb=false;
-    setting.scan_convert=false;
-    setting.bvh_hzb=true;
-
-    setting.show_tlas=false;
-    setting.show_blas=false;
-    setting.profile_report=true;
-    
-    render.pipelineInit(setting);
+    return 0;
+}
 
 
-    // init glfw window and glad
+
+/*
+// init glfw window and glad
     int width=camera.getImageWidth();
     int height=camera.getImageHeight();
 
     Window window;
     window.init("SRender", width, height);
     window.bindRender(&render);
+
 
     int cnt=0;
     auto lastTime=std::chrono::high_resolution_clock::now();
@@ -56,7 +45,10 @@ int main(void) {
 
     auto& colorbuffer=render.getColorBuffer();
     while (!window.shouldClose()) {
-        /* RENDERING */
+
+        window.processInput();
+        window.newImGuiFrame();
+
         render.moveCamera();
 
 #ifdef TIME_RECORD
@@ -80,6 +72,8 @@ int main(void) {
         }
         std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<" ms "<<std::endl;
 
+        window.renderImGuiFrame();
+
         // postrender events
         window.swapBuffer();
         render.cleanFrame();
@@ -87,8 +81,6 @@ int main(void) {
         lastTime=curTime;
         render.setDeltaTime(float(duration));
 
-         // process input
-        window.processInput();
 
 #ifdef TIME_RECORD
         if(!(cnt%10)){
@@ -98,6 +90,7 @@ int main(void) {
 #endif
     }// game loop
 
+    window.shutdownImGui();
     glfwTerminate();    
-    return 0;
-}
+
+*/

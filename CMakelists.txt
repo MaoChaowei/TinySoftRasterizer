@@ -15,12 +15,12 @@ add_subdirectory(${EXTERNAL_DIR}/glfw)
 #glad
 add_subdirectory(${EXTERNAL_DIR}/glad)
 
+find_package(OpenGL REQUIRED)
+
 set(LIB_LINKS
     glfw
     glad
-    # assimp
-    ${OPENGL_LIBRARIES}
-    ${CMAKE_DL_LIBS}
+    OpenGL::GL
     )
 
 # 定义源代码文件
@@ -30,9 +30,13 @@ file(GLOB SOURCE_FILES
     ${CMAKE_SOURCE_DIR}/src/softrender/*.cpp
 )
 
+file(GLOB_RECURSE IMGUI_SRCS 
+        ${EXTERNAL_DIR}/imgui/*.cpp)
+
 # 定义可执行文件
-add_executable(srender 
+add_executable(srender             # WIN32: GUI 子系统 而不是 控制台子系统
                "${SOURCE_FILES}"
+               "${IMGUI_SRCS}"
                 )
 # 搜索目录
 target_include_directories(srender PUBLIC 
@@ -41,8 +45,8 @@ target_include_directories(srender PUBLIC
                 ${CMAKE_SOURCE_DIR}/src
                 ${EXTERNAL_DIR}/glm
                 ${EXTERNAL_DIR}/
-                ${EXTERNAL_DIR}/assimp/include
-                ${EXTERNAL_DIR}/assimp/contrib
+                ${EXTERNAL_DIR}/imgui
+                ${EXTERNAL_DIR}/imgui/backend
                 )
 # 链接库
 target_link_libraries(srender PRIVATE ${LIB_LINKS} )

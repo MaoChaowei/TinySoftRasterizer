@@ -10,10 +10,6 @@
  */
 void Render::loadDemoScene(std::string name, ShaderType shader)
 {
-    if(this->is_init_){
-        std::cerr<<"Currently don't support load demo scene after the pipeline's initialization!\n";
-        return;
-    }
 #ifdef TIME_RECORD
     timer_.start("loadDemoScene");
 #endif

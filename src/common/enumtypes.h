@@ -46,9 +46,25 @@ inline ShaderType operator^(const ShaderType& s1,const ShaderType& s2){
     return (ShaderType)((int)(s1)^(int)(s2));
 }
 
-
 enum class ClipFlag{
     accecpted=0,
     clipped=1,
     refused=2,
 };
+
+enum class ClipPlane {
+    Left,
+    Right,
+    Bottom,
+    Top,
+    Near,
+    Far
+};
+
+enum class RasterizeType{
+    Naive       =1<<0,
+    Bvh_hzb     =1<<1,
+    Easy_hzb    =1<<2,
+    Scan_convert=1<<3,
+};
+

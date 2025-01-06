@@ -7,7 +7,8 @@
                 "${workspaceFolder}/external/glad/include/**",
                 "${workspaceFolder}/external/glfw/include/**",
                 "${workspaceFolder}/external/glm/**",
-                "${workspaceFolder}/external/**"
+                "${workspaceFolder}/external/**",
+                "${workspaceFolder}/external/imgui/**"
             ],
             "defines": [
                 "_DEBUG",
