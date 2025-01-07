@@ -4,6 +4,7 @@ build/
 # 忽略临时文件
 *.tmp
 *.log
+*.ini
 
 # 忽略操作系统产生的垃圾文件
 .DS_Store
@@ -13,15 +14,6 @@ Thumbs.db
 CMakeFiles/
 CMakeCache.txt
 
-# 忽略编译输出
-*.o
-*.obj
-*.so
-*.dll
-*.exe
-*.out
-*.a
-*.lib
 
 # 忽略 IDE 和编辑器的临时文件
 .vscode/

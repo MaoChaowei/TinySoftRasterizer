@@ -7,11 +7,11 @@
 #include"scene_loader.h"
 #include"buffer.h"
 #include"hzb.h"
-#include"AABB.h"
-#include"utils.h"
+#include"common/AABB.h"
+#include"common/utils.h"
 #include"light.h"
-#include"scanline.h"
-#include"interface.h"
+#include"softrender/scanline.h"
+#include"softrender/interface.h"
 
 class Render{
 public:
@@ -108,7 +108,7 @@ private:
     void drawTriangleScanLine();
 
     void traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeIdx,bool is_TLAS,const glm::mat4& model=glm::mat4(1.0));
-    void DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vector<ASInstance>& instances,uint32_t nodeIdx);
+    void DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,std::vector<AABB3d> &tlas_sboxes,const std::vector<ASInstance>& instances,uint32_t nodeIdx);
     void DfsBlas_BVHwithHZB(const ASInstance& inst,int32_t nodeIdx);
 
     // update members accrordingly after camera's update

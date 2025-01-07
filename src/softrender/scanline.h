@@ -4,7 +4,7 @@
 #include"object.h"
 #include"buffer.h"
 #include"shader.h"
-#include"algorithm"
+#include<algorithm>
 
 namespace ScanLine{
 

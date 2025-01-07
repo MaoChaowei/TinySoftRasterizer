@@ -8,7 +8,8 @@ void Render::updateMatrix(){
 }
 
 void Render::addObjInstance(std::string filename,glm::mat4& model,ShaderType shader,bool flipn,bool backculling){
-    scene_.addObjInstance(filename,model,shader,flipn,backculling); 
+    // scene_.addObjInstance(filename,model,shader,flipn,backculling); 
+     scene_.addObjInstance_SpaceFriendly(filename,model,shader,flipn,backculling); 
 }
 
 void Render::pipelineInit(){
@@ -267,7 +268,7 @@ void Render::pipelineGeometryPhase(){
 
         // clip space => NDC => screen space 
         for(auto& newv:*ins.vertices_){
-            sdptr_->vertex2Screen(newv,ins.screenBBox_,box3d_);
+            sdptr_->vertex2Screen(newv);
         }
     }
 
@@ -431,8 +432,8 @@ void Render::pipelineRasterizePhaseHZB_BVH(){
 #ifdef TIME_RECORD
     timer_.start("122.DfsTlas_BVHwithHZB()");
 #endif
-
-    DfsTlas_BVHwithHZB(tlas_tree,scene_.getAllInstances(),0);
+    auto& tlas_sboxes=*tlas.tlas_sboxes_;
+    DfsTlas_BVHwithHZB(tlas_tree,tlas_sboxes,scene_.getAllInstances(),0);
 
 #ifdef TIME_RECORD
     timer_.stop("122.DfsTlas_BVHwithHZB()");
@@ -440,7 +441,7 @@ void Render::pipelineRasterizePhaseHZB_BVH(){
 
 }
 
-void Render::DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vector<ASInstance>& instances,uint32_t nodeIdx){
+void Render::DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,std::vector<AABB3d> &tlas_sboxes,const std::vector<ASInstance>& instances,uint32_t nodeIdx){
 
      if(nodeIdx>=tree.size()){
         std::cerr<<"Render::DfsTlas_BVHwithHZB: nodeIdx>=tree.size()!\n";
@@ -450,22 +451,22 @@ void Render::DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vect
     auto& node=tree[nodeIdx];
 
     // IF the box is refused by HZB
-    if(hzb_->rapidRefuseBox(node.sbox)){
+    if(hzb_->rapidRefuseBox(tlas_sboxes[nodeIdx])){
         return;
     }
     
     // ELSE dive deeper...
     if(node.left>0&&node.right>0){
         // select a nearer node as a prior candidate
-        AABB3d sbox_left=tree[node.left].sbox;
-        AABB3d sbox_right=tree[node.right].sbox;
+        AABB3d sbox_left=tlas_sboxes[node.left];
+        AABB3d sbox_right=tlas_sboxes[node.right];
         if(sbox_left.min.z<sbox_right.min.z){
-            DfsTlas_BVHwithHZB(tree,instances,node.left);
-            DfsTlas_BVHwithHZB(tree,instances,node.right);
+            DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.left);
+            DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.right);
         }
         else{
-            DfsTlas_BVHwithHZB(tree,instances,node.right);
-            DfsTlas_BVHwithHZB(tree,instances,node.left);
+            DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.right);
+            DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.left);
         }
     }
     else if(node.left==-1&&node.right==-1){
@@ -479,10 +480,10 @@ void Render::DfsTlas_BVHwithHZB(const std::vector<BVHnode>& tree,const std::vect
         DfsBlas_BVHwithHZB(inst,0);
     }
     else if(node.left==-1&&node.right!=-1){
-        DfsTlas_BVHwithHZB(tree,instances,node.right);
+        DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.right);
     }
     else if(node.right==-1&&node.left!=-1){
-        DfsTlas_BVHwithHZB(tree,instances,node.left);
+        DfsTlas_BVHwithHZB(tree,tlas_sboxes,instances,node.left);
     }
 }
 
@@ -497,15 +498,15 @@ void Render::DfsBlas_BVHwithHZB(const ASInstance& inst,int32_t nodeIdx){
     const BVHnode& node=tree[nodeIdx];
 
     // IF the box is refused by HZB
-    if(hzb_->rapidRefuseBox(node.sbox)){
+    if(hzb_->rapidRefuseBox(inst.blas_sboxes_->at(nodeIdx))){
         return;
     }
     
     // ELSE dive deeper...
     if(node.left>0&&node.right>0){
         // select a nearer node as the prior candidate
-        AABB3d sbox_left=tree[node.left].sbox;
-        AABB3d sbox_right=tree[node.right].sbox;
+        AABB3d sbox_left=inst.blas_sboxes_->at(node.left);
+        AABB3d sbox_right=inst.blas_sboxes_->at(node.right);
         if(sbox_left.min.z<sbox_right.min.z){
             DfsBlas_BVHwithHZB(inst,node.left);
             DfsBlas_BVHwithHZB(inst,node.right);

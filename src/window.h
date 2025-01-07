@@ -88,7 +88,7 @@ public:
             ImGui::Text("Leaf size of BLAS");
             ImGui::SameLine();
             setting.leaf_num_change=false;
-            if (ImGui::SliderInt("##Leaf size of BLAS", &setting.bvh_leaf_num, 4, 36)) {
+            if (ImGui::SliderInt("##Leaf size of BLAS", &setting.bvh_leaf_num, 4, 128)) {
                 setting.leaf_num_change=true;
             }
 
@@ -242,28 +242,26 @@ public:
         static std::vector<float> fps(50, 0.0f); // 存储最近 100 帧的帧率
         static int currentIndex = 0;
 
-        // 获取当前帧的帧时间 (ms)
         float currentFPS=ImGui::GetIO().Framerate;
         float currentFrameTime = 1000.0f / currentFPS;
 
-        // 显示帧率
         ImGui::Text("FPS: %.1f fps", ImGui::GetIO().Framerate);
         ImGui::Text("Frame Time: %.3f ms/frame", currentFrameTime);
         fps[currentIndex] = currentFPS;
         currentIndex = (currentIndex + 1) % fps.size();
 
         // 绘制帧时间折线图
+        ImGui::Text("FPS Line Chart");
         ImGui::PlotLines(
-            "##FPS Line Chart",           // 图表标题
-            fps.data(),               // 数据指针
-            fps.size(),               // 数据数量
+            "##FPS Line Chart",             // 图表标题
+            fps.data(),                     // 数据指针
+            fps.size(),                     // 数据数量
             currentIndex,                    // 当前数据偏移
             nullptr,                         // 可选标签（显示在图表左上角）
             0.0f,                            // 最小值
-            30.f,  // 最大值
+            40.f,                           // 最大值
             ImVec2(0, 80)                    // 图表大小
         );
-        ImGui::Text("FPS Line Chart");
     }
 
     void renderImGuiFrame(){

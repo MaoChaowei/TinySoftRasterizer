@@ -16,13 +16,22 @@ mkdir "%BUILD_DIR%"
 cd "%BUILD_DIR%"
 
 echo Configuring the project with CMake...
+
+REM  if use GNU
+REM cmake  -DCMAKE_BUILD_TYPE=Debug \
+REM        -DCMAKE_C_COMPILER=/path/to/gcc \
+REM        -DCMAKE_CXX_COMPILER=/path/to/g++ \ .. 
+REM  if use Visual Studio
+REM cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Debug ..
+
+REM choose default compiler
 cmake -DCMAKE_BUILD_TYPE=Debug  .. || (
     echo CMake configuration failed. Exiting.
     exit /b 1
 )
 
 echo Building the project...
-cmake --build . || (
+cmake --build . --config Debug || (
     echo Build failed. Exiting.
     exit /b 1
 )

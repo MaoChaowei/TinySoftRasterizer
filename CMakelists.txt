@@ -34,7 +34,7 @@ file(GLOB_RECURSE IMGUI_SRCS
         ${EXTERNAL_DIR}/imgui/*.cpp)
 
 # 定义可执行文件
-add_executable(srender             # WIN32: GUI 子系统 而不是 控制台子系统
+add_executable(srender WIN32            # WIN32: GUI 子系统 而不是 控制台子系统
                "${SOURCE_FILES}"
                "${IMGUI_SRCS}"
                 )

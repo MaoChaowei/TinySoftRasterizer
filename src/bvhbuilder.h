@@ -13,7 +13,6 @@ struct BVHnode
     int right;
 
     AABB3d bbox;    // box in world or local space, pre-calculated when obj file is loaded.
-    AABB3d sbox;    // box in screen space, calculated each frame.
 
     // specify which elements do this node control.
     unsigned int prmitive_start;

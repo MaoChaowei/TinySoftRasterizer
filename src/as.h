@@ -47,13 +47,14 @@ public:
         vertices_=std::make_unique<std::vector<Vertex>>();
         mtlidx_=std::make_unique<std::vector<int>>();
         primitives_buffer_=std::make_unique<std::vector<PrimitiveHolder>>();
+        blas_sboxes_=std::make_unique<std::vector<AABB3d>>(blas_->tree_->size());
     }
+
     void refreshVertices(){
         vertices_=std::make_unique<std::vector<Vertex>>();
         mtlidx_=std::make_unique<std::vector<int>>();
         primitives_buffer_=std::make_unique<std::vector<PrimitiveHolder>>();
-
-        screenBBox_.reset();
+        blas_sboxes_=std::make_unique<std::vector<AABB3d>>(blas_->tree_->size());
     }
 
     void BLASupdateSBox(){
@@ -62,19 +63,12 @@ public:
         updateScreenBox(0,blas_tree,primitive_indices);
     }
 
-    /**
-     * @brief update aabb3d box of blas bvh nodes in screen space
-     * 
-     * @param node_idx current node index
-     * @param blas_tree blas bvh tree
-     * @param primitive_indices blas_->primitives_indices_,pointing to primitives in objectdescribe.
-     */
     void updateScreenBox(int32_t node_idx,std::vector<BVHnode>&blas_tree,std::vector<uint32_t>& primitive_indices){
 
         int32_t left_idx=blas_tree[node_idx].left;
         int32_t right_idx=blas_tree[node_idx].right;
 
-        auto& sbox=blas_tree[node_idx].sbox;
+        auto& sbox=blas_sboxes_->at(node_idx);
         sbox.reset();
 
         if(left_idx==-1&&right_idx==-1){
@@ -104,8 +98,8 @@ public:
             updateScreenBox(right_idx,blas_tree,primitive_indices);
         }
 
-        sbox.expand(blas_tree[left_idx].sbox);
-        sbox.expand(blas_tree[right_idx].sbox);
+        sbox.expand(blas_sboxes_->at(left_idx));
+        sbox.expand(blas_sboxes_->at(right_idx));
 
         return;
     }
@@ -118,35 +112,30 @@ public:
     std::unique_ptr<std::vector<Vertex>> vertices_;
     std::unique_ptr<std::vector<int>> mtlidx_;
     std::unique_ptr<std::vector<PrimitiveHolder>> primitives_buffer_;
+    std::unique_ptr<std::vector<AABB3d>> blas_sboxes_;
 
     glm::mat4 modle_;
     AABB3d worldBBox_;
-    AABB3d screenBBox_;
     ShaderType shader_;
 };
 
 class TLAS
 {
 public:
-    TLAS():tree_(std::make_unique<std::vector<BVHnode>>()){}
+    TLAS():tree_(std::make_unique<std::vector<BVHnode>>()),tlas_sboxes_(std::make_unique<std::vector<AABB3d>>()){}
 
     void buildTLAS(){
         if(all_instances_.size()){
             BVHbuilder builder(all_instances_);
             tree_=builder.moveNodes();
         }
+        tlas_sboxes_->resize(tree_->size());
     }
 
     void TLASupdateSBox(){
         for(auto& inst:all_instances_){
             inst.BLASupdateSBox();
-            auto& blas_sbox=inst.blas_->tree_->at(0).sbox;
-            if(blas_sbox.min!=inst.screenBBox_.min||blas_sbox.max!=inst.screenBBox_.max){
-                std::cout<<"ERROR:if(sbox.min!=temp.min||sbox.max!=temp.max)fail\n";
-                std::cout<<blas_sbox;
-                std::cout<<inst.screenBBox_;
-                exit(-1);
-            }
+            auto& blas_sbox=inst.blas_sboxes_->at(0);
         }
         updateScreenBox(0);
     }
@@ -156,11 +145,11 @@ public:
         
         int32_t left_idx=tree_->at(node_idx).left;
         int32_t right_idx=tree_->at(node_idx).right;
+        auto& sbox=tlas_sboxes_->at(node_idx);
 
         if(left_idx==-1&&right_idx==-1){
-            auto& sbox=tree_->at(node_idx).sbox;
             int st=tree_->at(node_idx).prmitive_start;
-            sbox=all_instances_[st].screenBBox_;
+            sbox=all_instances_[st].blas_sboxes_->at(0);
             return;
         }
 
@@ -171,10 +160,9 @@ public:
             updateScreenBox(right_idx);
         }
 
-        auto& sbox=tree_->at(node_idx).sbox;
         sbox.reset();
-        sbox.expand(tree_->at(left_idx).sbox);
-        sbox.expand(tree_->at(right_idx).sbox);
+        sbox.expand(tlas_sboxes_->at(left_idx));
+        sbox.expand(tlas_sboxes_->at(right_idx));
 
         return;
     }
@@ -183,5 +171,7 @@ public:
 public:
     std::vector<ASInstance> all_instances_;
     std::unique_ptr<std::vector<BVHnode>> tree_;
+
+    std::unique_ptr<std::vector<AABB3d>> tlas_sboxes_;
 
 };
