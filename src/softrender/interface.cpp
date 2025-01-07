@@ -31,15 +31,8 @@ void Render::GameLoop(){
         // change camera according to the input
         this->moveCamera();
 
-#ifdef TIME_RECORD
-        this->timer_.start("100.Render::piplineBegin");
-#endif
         // the pipeline goes well here
         this->pipelineBegin();
-
-#ifdef TIME_RECORD
-        this->timer_.stop("100.Render::piplineBegin");
-#endif
         
         // update frameBuffer
         window.updateFrame(colorbuffer_->getAddr());
@@ -47,7 +40,7 @@ void Render::GameLoop(){
         
         curTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(curTime - lastTime).count();
-        std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<" ms "<<std::endl;
+        // std::cout<<"frame : "<<cnt++<<" ,duration:"<<duration <<" ms "<<std::endl;
 
         // render imGui for this frame
         window.renderImGuiFrame();
@@ -59,12 +52,9 @@ void Render::GameLoop(){
         this->setDeltaTime(float(duration));
 
 
-#ifdef TIME_RECORD
-        if(!(cnt%10)){
-            this->timer_.report();
-            this->timer_.reset();
-        }
-#endif
+// #ifdef TIME_RECORD
+//         this->timer_.report();
+// #endif
     }// game loop
 
     window.shutdownImGui();

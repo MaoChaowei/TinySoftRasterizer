@@ -68,11 +68,7 @@ public:
         std::cout <<"\n ------------------------------- "<<std::endl;
         for (const auto &[type, timer] : timers_)
         {
-#ifdef MILLISECOND
             std::cout << type << " : " << (timer.elapsed_time) / 1000.0 << " ms" << std::endl;
-#else
-            std::cout << type << " : " << timer.elapsed_time << " us" << std::endl;
-#endif
         }
         std::cout <<" ------------------------------- "<<std::endl;
     }
@@ -84,15 +80,15 @@ public:
         auto it = timers_.find(type);
         if (it != timers_.end())
         {
-#ifdef MILLISECOND
             std::cout << type << " Time: " << it->second.elapsed_time / 1000.0 << " ms" << std::endl;
-#else
-            std::cout << type << " Time: " << it->second.elapsed_time << " us" << std::endl;
-#endif
         }
     }
 
-private:
+    void clear(){
+        timers_.clear();
+    }
+
+public:
     struct Timer
     {
         double elapsed_time = 0.0; // 累积时间（微秒）

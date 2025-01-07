@@ -17,6 +17,7 @@ void Render::pipelineInit(){
 
     // 0. load scene
     loadDemoScene(setting_.scene_filename,setting_.shader_type);
+    setBVHLeafSize(setting_.bvh_leaf_num);
     scene_.buildTLAS();
 
     // 1. init transformation
@@ -177,10 +178,6 @@ void Render::drawTriangleScanLine(){
     }
 }
 
-// in screen space
-bool Render::backCulling(const glm::vec3& face_norm,const glm::vec3& dir) const {
-    return glm::dot(dir,face_norm) <= 0;
-}
 
 void Render::pipelineBegin(){
 
@@ -188,6 +185,7 @@ void Render::pipelineBegin(){
         std::cerr<<"pipelineBegin: didn't use `pipelineInit` to initialize.\n";
         return;
     }
+    // update the scene or render accorrding to the setting(modified by ImGui)
     if(setting_.scene_change==true){
         loadDemoScene(setting_.scene_filename,setting_.shader_type);
         scene_.buildTLAS();
@@ -198,22 +196,29 @@ void Render::pipelineBegin(){
                 inst.shader_=setting_.shader_type;
         }
     }
-
+    if(setting_.rasterize_change==true){
+        timer_.clear(); // each rasterize technique has different stages
+    }
+    if(setting_.leaf_num_change==true){
+        setBVHLeafSize(setting_.bvh_leaf_num);
+        scene_.rebuildBLAS();
+    }
+    // update the camera if moved
     if(camera_.needUpdateView())
         updateViewMatrix();
 
-    // shader need these to calculate color:
+    // prepare for shader
     sdptr_->bindCamera(std::make_shared<Camera>(camera_));          
     sdptr_->bindLights(scene_.getLights());
 
-    // start pipeline
+    // The pipeline happens here
     if(setting_.rasterize_type==RasterizeType::Bvh_hzb){
         pipelineHZB_BVH();
     }else{
         pipelinePerInstance();
     }
 
-
+    // show bvh structure
     if(setting_.show_tlas){
         showTLAS();
     }else if(setting_.show_blas){
@@ -222,8 +227,15 @@ void Render::pipelineBegin(){
             showBLAS(ins);
     }
 
-    if(setting_.profile_report)
-        printProfile();
+    // calculate hzb_culled_face_num_
+    profile_.hzb_culled_face_num_=profile_.total_face_num_
+                        -profile_.shaded_face_num_
+                        -profile_.back_culled_face_num_
+                        -profile_.clipped_face_num_;
+
+    // this is for cmd user:
+    // if(setting_.profile_report)
+    //     printProfile();
 }
 
 
@@ -265,24 +277,24 @@ void Render::pipelineGeometryPhase(){
 void Render::pipelinePerInstance(){
 
 #ifdef TIME_RECORD
-    timer_.start("110.GeometryPhase");
+    timer_.start("110.Geometry Phase");
 #endif
 
     pipelineGeometryPhase();
     
 #ifdef TIME_RECORD
-    timer_.stop("110.GeometryPhase");
+    timer_.stop("110.Geometry Phase");
 #endif
 
 
 #ifdef TIME_RECORD
-    timer_.start("120.RasterizePhasePerInstance");
+    timer_.start("120.Rasterize Phase(Per-Instance mode)");
 #endif
 
     pipelineRasterizePhasePerInstance();
 
 #ifdef TIME_RECORD
-    timer_.stop("120.RasterizePhasePerInstance");
+    timer_.stop("120.Rasterize Phase(Per-Instance mode)");
 #endif
 
 }
@@ -378,23 +390,23 @@ bool Render::mapWorldBox2ScreenBox(const BVHnode& node,const glm::mat4& transiti
 void Render::pipelineHZB_BVH(){
 
 #ifdef TIME_RECORD
-    timer_.start("110.pipelineGeometryPhase");
+    timer_.start("110.Geometry Phase");
 #endif
 
     pipelineGeometryPhase();
     
 #ifdef TIME_RECORD
-    timer_.stop("110.pipelineGeometryPhase");
+    timer_.stop("110.Geometry Phase");
 #endif
 
 #ifdef TIME_RECORD
-    timer_.start("120.RasterizePhaseHZB_BVH");
+    timer_.start("120.Rasterize Phase(HZB_BVH mode)");
 #endif
 
     pipelineRasterizePhaseHZB_BVH();
 
 #ifdef TIME_RECORD
-    timer_.stop("120.RasterizePhaseHZB_BVH");
+    timer_.stop("120.Rasterize Phase(HZB_BVH mode)");
 #endif
 
 }
@@ -404,7 +416,7 @@ void Render::pipelineHZB_BVH(){
 void Render::pipelineRasterizePhaseHZB_BVH(){
 
 #ifdef TIME_RECORD
-    timer_.start("121.updateSBox");
+    timer_.start("121.update SBox");
 #endif
     // update bvh in screenspace
     auto& tlas=scene_.getTLAS();
@@ -413,17 +425,17 @@ void Render::pipelineRasterizePhaseHZB_BVH(){
     tlas.TLASupdateSBox();
 
 #ifdef TIME_RECORD
-    timer_.stop("121.updateSBox");
+    timer_.stop("121.update SBox");
 #endif
 
 #ifdef TIME_RECORD
-    timer_.start("122.DfsTlas_BVHwithHZB");
+    timer_.start("122.DfsTlas_BVHwithHZB()");
 #endif
 
     DfsTlas_BVHwithHZB(tlas_tree,scene_.getAllInstances(),0);
 
 #ifdef TIME_RECORD
-    timer_.stop("122.DfsTlas_BVHwithHZB");
+    timer_.stop("122.DfsTlas_BVHwithHZB()");
 #endif
 
 }
@@ -644,7 +656,7 @@ void Render::traverseBVHandDraw(const std::vector<BVHnode>& tree,uint32_t nodeId
         traverseBVHandDraw(tree,node.right,is_TLAS,model);
 }
 
-// drawLine in screen space
+// drawLine in screen space 
 void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
     // naive clip: create a aabb2d to intersect with the screen 
     AABB2d aabb;
@@ -677,10 +689,13 @@ void Render::drawLine3d(glm::vec3 t1,glm::vec3 t2,const glm::vec4& color) {
                     ? hzb_->getFinesetZbuffer()
                     :*zbuffer_;
 
+    float inv_t1z=1.0/t1.z;
+    float inv_t2z=1.0/t2.z;
+
     for(int x=t1.x;x<=t2.x;++x){
-        // TODO: 忘记透视矫正了欸！
         float dt=(x-t1.x)/float(dx);
-        float curz=(1-dt)*t1.z+dt*(t2.z);
+        // float curz=(1-dt)*t1.z+dt*(t2.z);
+        float curz=1.0/((1-dt)*inv_t1z+dt*inv_t2z);
         if(swap_flag){
             if(x<=aabb.max.y&&x>=aabb.min.y&&y<=aabb.max.x&&y>=aabb.min.x){
                 float curdepth=depthbuf.getDepth(y,x);
@@ -744,10 +759,6 @@ void Render::afterCameraUpdate(){
 }
 
 void Render::printProfile(){
-    profile_.hzb_culled_face_num_=profile_.total_face_num_
-                                -profile_.shaded_face_num_
-                                -profile_.back_culled_face_num_
-                                -profile_.clipped_face_num_;
 
     std::cout<<"-------------- face counter  -----------------\n";
     std::cout<<"total         ="<<profile_.total_face_num_<<std::endl;

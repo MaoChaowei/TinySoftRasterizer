@@ -57,6 +57,8 @@ public:
             profile_.hzb_culled_face_num_=0;
             profile_.clipped_face_num_=0;
         }
+
+        timer_.reset();
     }
 
     inline  Camera& getCamera(){ return camera_;}
@@ -115,6 +117,7 @@ private:
 
     void initRenderIoInfo(){
         setting_.scene_filename="Bunnys_mutilights";
+        setting_.bvh_leaf_num=12;
         setting_.back_culling=true;
         setting_.earlyz_test=true;
         setting_.rasterize_type=RasterizeType::Bvh_hzb;

@@ -2,24 +2,20 @@
 #include"window.h"
 #include"render.h"
 
-// const int TARGET_FPS = 60;
-// const double FRAME_DURATION = 1000.0 / TARGET_FPS; // ms
-ImGuiIO* Window::io=nullptr;                       // initialize static member
+ // initialize static member for Window
+ImGuiIO* Window::io=nullptr;                      
 
 int main(void) {
 
     Render render;
-    render.setBVHLeafSize(12);
-    render.setViewport(1024,1.0/1.0,60.0);
 
+    // these setting are not open to users yet..
+    render.setViewport(1024,1.0/1.0,60.0);
     auto& camera=render.getCamera();
     camera.setMovement(0.05,0.1);
     camera.setFrastrum(1.0,1000.0);
-    // render.loadDemoScene("SingleBox",ShaderType::Normal);
-    // render.loadDemoScene("Bunnys",ShaderType::BlinnPhone|ShaderType::ORDER);
     
     render.pipelineInit();
-
     render.GameLoop();
     
     return 0;

@@ -183,6 +183,10 @@ int Render::pipelineClipping(std::vector<Vertex>& vertices, std::vector<Vertex>&
     return out.size() / 3;
 }
 
+// in screen space
+bool Render::backCulling(const glm::vec3& face_norm,const glm::vec3& dir) const {
+    return glm::dot(dir,face_norm) <= 0;
+}
 
 // backculling and frustrum culling
 void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal_mat){

@@ -17,9 +17,7 @@
 
 // switch for time-recording
 #define TIME_RECORD
-#ifdef TIME_RECORD
-#define MILLISECOND
-#endif
+
 
 namespace srender{
     

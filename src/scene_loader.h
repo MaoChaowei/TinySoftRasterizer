@@ -83,6 +83,14 @@ public:
         face_num_=0;
     }
 
+    // when leaf_num is changed, blas should be rebuilt.
+    void rebuildBLAS(){
+        for(auto& inst:tlas_->all_instances_){
+            auto object=inst.blas_->object_;
+            inst.blas_=std::make_shared<BLAS>(object,leaf_num_);
+        }
+    }
+
     
 private:
     

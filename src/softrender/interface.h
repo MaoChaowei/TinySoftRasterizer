@@ -7,17 +7,23 @@
 struct RenderSetting{
     bool show_tlas=false;
     bool show_blas=false;
+
     std::string scene_filename="";
-    bool scene_change=false;        // true when demo scene is changed.
+    bool scene_change=false;       
+
+    int bvh_leaf_num;
+    bool leaf_num_change=false;
 
     ShaderType shader_type=ShaderType::Depth;
     bool shader_change=false;
 
     RasterizeType rasterize_type=RasterizeType::Naive;
+    bool rasterize_change=false;
     
     bool back_culling=true;
     bool profile_report=true;
 
+    // always true
     bool earlyz_test=true;
 };
 

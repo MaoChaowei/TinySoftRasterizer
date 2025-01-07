@@ -14,22 +14,32 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     timer_.start("loadDemoScene");
 #endif
     scene_.clearScene();
-    if(name=="SingleBox"){
-        {
-            glm::vec3 model_position{0, 0, -200};
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
-            glm::mat4 model_matrix = translation * rotate * scale;
-            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,ShaderType::Light,true);
-        }
+    if(name=="person"){
+        setCamera({0,0,0},{0,0,-1},{1,0,0});
         {
             glm::vec3 model_position{0, 0, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(50));
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(280.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.7));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix ,shader,true);
+            addObjInstance(std::string("assets/model/nefertiti.obj"),model_matrix ,shader,false);
+        }
+        {
+            glm::vec3 lightpos{0, -20, 50};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/cube/cube.obj"),model_matrix,ShaderType::Light, true);
+
+            PointLight pt;
+            pt.pos_ = lightpos;
+            pt.ambient_ = glm::vec3(0.5, 0.1, 0);
+            pt.diffuse_ = glm::vec3(222/255.0,184/255.0,135/255.0);
+            pt.specular_ = glm::vec3(1.0, 0.8, 0.8);
+            pt.quadratic_ = 0.00008f;
+
+            scene_.addLight(std::make_shared<PointLight>(pt));
         }
     }
     else if (name == "Boxes")
@@ -76,7 +86,7 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
             scene_.addLight(std::make_shared<PointLight>(pt));
         }
     }
-    else if (name == "Bunny")
+    else if (name == "Bunny_with_wall")
     {
         {
             glm::vec3 model_position{0, -100, -400};
@@ -191,20 +201,20 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
             scene_.addLight(std::make_shared<PointLight>(pt));
         }
     }
-    else if (name == "CornellBox")
+    else if (name == "High_Depth_Complexity")
     {
 
         // setCamera({200,100,-350},{0,0,-400},{0,0,-1});
         {
-            glm::vec3 model_position{110, -90, -300};
+            glm::vec3 model_position{50, 0, -400};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.3));
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));// 60
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(120));
             glm::mat4 model_matrix = translation * rotate * scale;
-            addObjInstance(std::string("assets/model/cornell_box/cornell_box.obj"), model_matrix,shader,false,false);
+            addObjInstance(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
         }
         {
-            glm::vec3 lightpos{0, 200, -300};
+            glm::vec3 lightpos{0, 200, 0};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
@@ -221,21 +231,30 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
             scene_.addLight(std::make_shared<PointLight>(pt));
         }
         {
-            glm::vec3 model_position{183, -50, -520};
+            glm::vec3 model_position{183, -50, -500};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(8));
             glm::mat4 model_matrix = translation * rotate * scale;
             addObjInstance(std::string("assets/model/ruins_building/SmallSetupRuins.obj"),model_matrix,shader,false);
         }
         {
-            glm::vec3 model_position{0, 10, -690};
+            glm::vec3 model_position{0, 10, -590};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(30));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(15));
             glm::mat4 model_matrix = translation * rotate * scale;
             addObjInstance(std::string("assets/model/Bunny.obj"), model_matrix,shader,false);
         }
+        {
+            glm::vec3 model_position{0, 10, -650};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(10));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/cow.obj"), model_matrix,shader,false);
+        }
+
     }
 
     else
@@ -247,6 +266,6 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
 #ifdef TIME_RECORD
     timer_.stop("loadDemoScene");
     timer_.reportElapsedTime("loadDemoScene");
-    timer_.del("loadDemoScene");
+    // timer_.del("loadDemoScene");
 #endif
 }
