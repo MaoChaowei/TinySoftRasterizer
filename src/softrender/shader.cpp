@@ -290,3 +290,15 @@ void Shader::shadeDirectLight(const DirLight& light,const glm::vec3& normal,cons
 
     content_.color+=glm::vec4((ambientcolor+diffcolor+specolor),1.0f);
 }
+
+void Shader::setShaderType(ShaderType st){
+    type_=st;
+    if(checkShader(ShaderType::Color|ShaderType::Light))
+        interp_sign_=interp_sign_|InterpolateSignal::Color;
+    if(checkShader(ShaderType::Normal|ShaderType::LIGHTSHADER))
+        interp_sign_=interp_sign_|InterpolateSignal::Normal;
+    if(checkShader(ShaderType::Texture|ShaderType::Light))
+        interp_sign_=interp_sign_|InterpolateSignal::UV;
+    if(checkShader(ShaderType::LIGHTSHADER))
+        interp_sign_=interp_sign_|InterpolateSignal::FragPos_World;
+}

@@ -141,3 +141,67 @@ void Camera::setFrastrum(float near,float far){
 	half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
 	half_near_width_=aspect_ratio_*half_near_height_;
 }
+
+
+Camera::Camera():position_(glm::vec3(0.f)),front_(glm::vec3(0,0,-1)),right_(glm::vec3(1,0,0)),
+		up_(glm::vec3(0,1,0)),image_width_(1000),fov_(60){
+	image_width_+=image_width_%2;
+	image_height_=(int)(image_width_/aspect_ratio_);
+	image_height_+=image_height_%2;
+	aspect_ratio_=image_width_/(float)image_height_;
+
+	half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
+	half_near_width_=aspect_ratio_*half_near_height_;
+
+	yaw_   = -90.0f; 
+	pitch_ = 0.0f;
+}
+/**
+ * @brief Construct a new camera object
+ * 
+ * @param pos : camera position in world
+ * @param lookat ：any point in camera's lookat direction
+ * @param right ：don't need to normalize
+ * @param fov ：vertical fov in degree
+ * @param ratio
+ * @param image_width 
+ */
+Camera::Camera(glm::vec3 pos,glm::vec3 lookat,glm::vec3 right,float fov,float ratio,int image_width)
+:position_(pos),right_(glm::normalize(right)),fov_(fov),aspect_ratio_(ratio),image_width_(image_width)
+{
+	image_width_+=image_width_%2;
+	image_height_=(int)(image_width/aspect_ratio_);
+	image_height_+=image_height_%2;
+	aspect_ratio_=image_width/(float)image_height_;
+
+	half_near_height_=tan(glm::radians(fov/2))*near_flat_z_;
+	half_near_width_=aspect_ratio_*half_near_height_;
+
+	front_=glm::normalize(lookat-pos);
+	up_=glm::cross(right_,front_);
+
+	pitch_ = glm::degrees(asin(front_.y));
+	yaw_   = glm::degrees(atan2(front_.z, front_.x));
+	if (pitch_ > 89.0f)  pitch_ = 89.0f;
+	if (pitch_ < -89.0f) pitch_ = -89.0f;
+
+}
+void Camera::setViewport(uint32_t width,float ratio,float fov){
+	image_width_=width;
+	image_width_+=image_width_%2;
+	image_height_=(int)(image_width_/ratio);
+	image_height_+=image_height_%2;
+	aspect_ratio_=image_width_/(float)image_height_;
+	fov_=fov;
+
+	half_near_height_=tan(glm::radians(fov_/2))*near_flat_z_;
+	half_near_width_=aspect_ratio_*half_near_height_;
+}
+
+const bool Camera::needUpdateView(){
+	if(update_flag_){
+		update_flag_=false;
+		return true;
+	}
+	return false;
+}

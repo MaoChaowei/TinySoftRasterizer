@@ -203,16 +203,6 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
     }
     else if (name == "High_Depth_Complexity")
     {
-
-        // setCamera({200,100,-350},{0,0,-400},{0,0,-1});
-        {
-            glm::vec3 model_position{50, 0, -400};
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));// 60
-            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(120));
-            glm::mat4 model_matrix = translation * rotate * scale;
-            addObjInstance(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
-        }
         {
             glm::vec3 lightpos{0, 200, 0};
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), lightpos);
@@ -229,6 +219,14 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
             pt.quadratic_ = 0.000001f;
 
             scene_.addLight(std::make_shared<PointLight>(pt));
+        }
+        {
+            glm::vec3 model_position{50, 0, -400};
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), model_position);
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(60.f), glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));// 60
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(120));
+            glm::mat4 model_matrix = translation * rotate * scale;
+            addObjInstance(std::string("assets/model/Brickwall/brickwall.obj"), model_matrix,shader,false, false);
         }
         {
             glm::vec3 model_position{183, -50, -500};
@@ -254,7 +252,6 @@ void Render::loadDemoScene(std::string name, ShaderType shader)
             glm::mat4 model_matrix = translation * rotate * scale;
             addObjInstance(std::string("assets/model/cow.obj"), model_matrix,shader,false);
         }
-
     }
 
     else

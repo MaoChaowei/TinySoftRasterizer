@@ -249,7 +249,7 @@ void Render::pipelineGeometryPhase(){
         auto& obj=ins.blas_->object_;
         auto& mat_model=ins.modle_;
 
-        // init fragment shader
+        // init vertex shader
         glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
         glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
         sdptr_->bindMVP(&mvp);
@@ -311,7 +311,8 @@ void Render::pipelineRasterizePhasePerInstance(){
         auto& objmtls=obj->getMtls();
 
         auto& objvertices=*ins.vertices_;
-        auto& objmtlidx=*ins.mtlidx_;
+        // auto& objmtlidx=*ins.mtlidx_;
+        auto& primitive_buffer=*ins.primitives_buffer_;
 
 
         // init shader for the current instance
@@ -330,7 +331,8 @@ void Render::pipelineRasterizePhasePerInstance(){
             sdptr_->assemblePrimitive(v1,v2,v3);
 
             // binds the material if it has one
-            int midx=objmtlidx[face_cnt];
+            // int midx=objmtlidx[face_cnt];
+            int midx=primitive_buffer[face_cnt].mtlidx_;
             if(midx>=0 && midx<objmtls.size()){
                 sdptr_->bindMaterial(objmtls[midx]);
             }else{
@@ -769,248 +771,3 @@ void Render::printProfile(){
     std::cout<<"hzb_culled    ="<<profile_.hzb_culled_face_num_<<std::endl;
 }
 
-
-/*
-
-void Render::pipelineNaive(){
-    
-    // put each instance into the pipeline. TODO: frustrum clipping~
-    auto& asinstances=scene_.getAllInstances();
-    for(auto& ins:asinstances){
-        auto& obj=ins.blas_->object_;
-        auto& mat_model=ins.modle_;       
-        auto otype=obj->getPrimitiveType();
-        auto& objvertices=obj->getVertices();
-        auto& objindices=obj->getIndices();
-        auto& objfacenorms=obj->getFaceNorms();
-        auto& objmtls=obj->getMtls();
-        auto& objmtlidx=obj->getMtlIdx();
-
-        // init shader for the current instance
-        glm::mat4 mvp=mat_perspective_*mat_view_*mat_model;
-        glm::mat4 normal_mat=glm::transpose(glm::inverse(mat_model));
-        sdptr_->bindMVP(&mvp);
-        sdptr_->bindViewport(&mat_viewport_);
-        sdptr_->bindNormalMat(&normal_mat);
-        sdptr_->bindModelMat(&mat_model);
-        sdptr_->setShaderType(ins.shader_);
-        sdptr_->setPrimitiveType(otype);
-
-#ifdef TIME_RECORD
-        timer_.start("110.MVP");
-#endif
-        // MVP => clip space
-        for(auto& v:objvertices){
-            sdptr_->vertexShader(v);
-        }
-
-#ifdef TIME_RECORD
-        timer_.stop("110.MVP");
-#endif
-        // for each primitive
-#ifdef TIME_RECORD
-        timer_.start("120.Rasterize phrase");
-#endif
-        int face_cnt=0;
-        for(auto it=objindices.begin();it!=objindices.end();++face_cnt){
-            // do clipping in clip space and reassemble primitives
-            std::vector<Vertex> in,out;
-            for(int t=0;t<3;++t){
-                in.push_back(objvertices[*it++]);
-            }
-            int primitive_num=pipelineClipping(in,out);
-            if(primitive_num==0) 
-                continue;
-            
-            for(int t=0;t<primitive_num;++t){
-                Vertex* v1=&out[t*3+0];
-                Vertex* v2=&out[t*3+1];
-                Vertex* v3=&out[t*3+2];
-                // assembly primitive
-                sdptr_->assemblePrimitive(v1,v2,v3);
-                // clip space => NDC => screen space 
-                sdptr_->vertex2Screen(*v1);
-                sdptr_->vertex2Screen(*v2);
-                sdptr_->vertex2Screen(*v3);
-
-                // back culling
-                if(setting_.back_culling&&obj->isBackCulling()){
-                    glm::vec3 norm=normal_mat*glm::vec4(objfacenorms[face_cnt],0.f);
-                    glm::vec3 dir=camera_.getPosition()-v1->w_pos_;
-                    if(backCulling(norm,dir)==true){
-                        continue;
-                    }
-                }
-
-                // the primitive binds the material if it has one
-                int midx=objmtlidx[face_cnt];
-                if(midx>=0 && midx<objmtls.size()){
-                    sdptr_->bindMaterial(objmtls[midx]);
-                }else{
-                    sdptr_->bindMaterial(nullptr);
-                }
-                
-                // render
-                switch(otype){
-                    case PrimitiveType::LINE:
-                        // drawLine();
-                        break;
-                    case PrimitiveType::MESH:
-                        if(setting_.bvh_hzb||setting_.easy_hzb) drawTriangleHZB();
-                        else if(setting_.scan_convert)  drawTriangleScanLine();
-                        else    drawTriangleNaive();
-                        break;
-                    default:
-                        break;
-                }
-            } // end for-primitive_num
-
-        }// end for-objindices
-
-#ifdef TIME_RECORD
-        timer_.stop("120.Rasterize phrase");
-#endif
-
-    }// end of for-asinstances
-
-}
-
-
-*/
-
-/*
-
-void Render::scanLineConvert(std::vector<const Vertex*> vertices,std::vector<FragmentHolder>& edge_points){
-    assert(vertices.size()==3);
-
-    std::sort(vertices.begin(),vertices.end(),[this](const Vertex*& v1,const Vertex*& v2){
-        return (int)v1->s_pos_.y<(int)v2->s_pos_.y;
-    });
-
-    auto v1=vertices[0];
-    auto v2=vertices[1];
-    auto v3=vertices[2];
-    int y1=(int)v1->s_pos_.y;
-    int y2=(int)v2->s_pos_.y;
-    int y3=(int)v3->s_pos_.y;
-    
-    // each endpoint was added only once
-    if(y1<y2&&y2<y3){
-        rasterizeEdge(v1,v2,true,false,edge_points);
-        rasterizeEdge(v2,v3,true,true,edge_points);
-        rasterizeEdge(v3,v1,true,true,edge_points);
-    }
-    else if(y1==y2&&y1==y3){
-        return;
-    }
-    else if(y1==y2){
-        rasterizeEdge(v2,v3,true,true,edge_points);
-        rasterizeEdge(v3,v1,true,true,edge_points);
-    }
-    else if(y2==y3){
-        rasterizeEdge(v1,v2,true,true,edge_points);
-        rasterizeEdge(v3,v1,true,true,edge_points);
-    }
-
-    // sort by Y as first order and X as second order
-    std::sort(edge_points.begin(),edge_points.end(),[](FragmentHolder& v1,FragmentHolder& v2){
-        if(v1.screenY_!=v2.screenY_)
-            return v1.screenY_<v2.screenY_;
-        return v1.screenX_<v2.screenX_;
-    });
-
-}
-// rasterize an edge of triangle for scan line algotirhm, and interplote attributes of edge points and reserve in a vector
-// note that each scan line should intersect with the primitive at even points. so I rasterize by 'y'
-void Render::rasterizeEdge(const Vertex* v1,const Vertex* v2,bool in1,bool in2,std::vector<FragmentHolder>& edge_points){
-    if(v1->s_pos_.y>v2->s_pos_.y){ 
-        std::swap(v1,v2);
-        std::swap(in1,in2);
-    }
-    float miny = v1->s_pos_.y;
-    float maxy = v2->s_pos_.y;
-    
-    float dy=maxy-miny;
-    if(dy<srender::EPSILON) return; // don't rasterize horizental edge
-    float dx=v2->s_pos_.x-v1->s_pos_.x;
-    float dx_dy=dx/dy;
-
-
-    int minx=v1->s_pos_.x;
-    FragmentHolder st={(int)v1->s_pos_.x,(int) v1->s_pos_.y,v1->s_pos_.z,v1->color_,v1->uv_,v1->w_pos_,v1->c_pos_,v1->w_norm_};
-    FragmentHolder ed={(int)v2->s_pos_.x,(int) v2->s_pos_.y,v2->s_pos_.z,v2->color_,v2->uv_,v2->w_pos_,v2->c_pos_,v2->w_norm_};
-
-    // delete endpoint if necessary
-
-    float k=(ed.screenY_==st.screenY_)?1:1.0/(ed.screenY_-st.screenY_);
-    FragmentHolder fdelta(st,ed);
-
-    for(int y=miny+(!in1);y<=maxy-(!in2);++y){
-        float t=(y-st.screenY_)*k;
-        float tmp=t/st.c_pos_.w;
-        float vt=tmp/(tmp+(1-t)/ed.c_pos_.w); // perspective correction
-        FragmentHolder curp(st+fdelta*vt);
-
-        curp.screenX_=dx_dy*(y-miny)+minx;
-        curp.screenY_=y;
-
-        edge_points.push_back(curp);
-        drawPoint(glm::vec2(curp.screenX_,curp.screenY_),2,glm::vec4(255,0,0,1));
-
-    }
-}
-// use scan-line algorithm to draw triangle
-
-void Render::drawTriangleScanLine()
-{
-    auto& v1=sdptr_->getVertices(0);
-    auto& v2=sdptr_->getVertices(1);
-    auto& v3=sdptr_->getVertices(2);
-
-    AABB2d aabb;
-    aabb.containTriangel(v1.s_pos_,v2.s_pos_,v3.s_pos_);
-    aabb.clipAABB(box_);
-    if(!aabb.valid)
-        return;
-
-    // rasterize each edge into points
-    std::vector<FragmentHolder> edge_points;
-    std::vector<const Vertex*> vertices{&v1,&v2,&v3};
-    scanLineConvert(vertices,edge_points);
-
-    // for each scanline
-    int num=edge_points.size();
-    assert(num%2==0);
-    for(int i=0;i<num-1;i+=2){
-        auto& cur=edge_points[i];
-        auto& next=edge_points[i+1];
-        assert(cur.screenY_==next.screenY_);
-        int y=cur.screenY_;
-        if(y>box_.max.y||y<box_.min.y)  
-            continue;
-
-        float k=(next.screenX_==cur.screenX_)?1:1/(next.screenX_-cur.screenX_);
-        FragmentHolder fdelta(cur,next);
-
-        for(int x=cur.screenX_;x<=next.screenX_;++x){
-            if(x>box_.max.x||x<box_.min.x)  
-                continue;
-
-            float t=(x-cur.screenX_)*k;
-            float tmp=t/cur.c_pos_.w;
-            float vt=tmp/(tmp+(1-t)/next.c_pos_.w); // perspective correction
-            FragmentHolder point(cur+fdelta*vt);
-
-            // // depth test and update z buffer
-            if(zbuffer_.zTest(x,y,point.depth_)){
-                // shader
-                sdptr_->fragmentShader(point);
-                // update color buffer
-                colorbuffer_->setPixel(x,y,sdptr_->getColor());
-            }
-        }
-    }
-    
-}
-
-*/

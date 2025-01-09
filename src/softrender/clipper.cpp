@@ -200,7 +200,6 @@ void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal
     const std::vector<int>& in_mtlidx=obj->getMtlIdx();
 
     std::vector<Vertex>& out_vertices=*instance.vertices_;
-    std::vector<int>& out_mtlidx=*instance.mtlidx_;
      std::vector<PrimitiveHolder>& out_primitives_buffer=*instance.primitives_buffer_;
 
     uint32_t ver_num=in_vertices.size();
@@ -210,7 +209,6 @@ void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal
 
     // reserve some space
     out_vertices.reserve(ver_num+100);
-    out_mtlidx.reserve(face_num+30);
     out_primitives_buffer.reserve(primitive_num+10);
 
     assert(idx_num%3==0&&idx_num/3==primitive_num);
@@ -281,10 +279,7 @@ void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal
             out_vertices.emplace_back(v1);
             out_vertices.emplace_back(v2);
             out_vertices.emplace_back(v3);
-            
 
-            out_mtlidx.emplace_back(in_mtlidx[face_cnt]);
-            
             continue;
         }
 
@@ -328,8 +323,6 @@ void Render::cullingTriangleInstance(ASInstance& instance,const glm::mat4 normal
             out_vertices.emplace_back(input[0]);
             out_vertices.emplace_back(input[i]);
             out_vertices.emplace_back(input[i + 1]);
-
-            out_mtlidx.emplace_back(in_mtlidx[face_cnt]);
         }
         profile_.total_face_num_+=vnum-3;
         out_primitives_buffer.emplace_back(ClipFlag::clipped,

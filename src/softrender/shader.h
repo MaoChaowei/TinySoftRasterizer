@@ -59,17 +59,7 @@ public:
     inline void bindTimer(CPUTimer* t){ timer_=t; }
     inline void bindFragmentHolder(const FragmentHolder& f){content_.bindFragment(f);}
 
-    inline void setShaderType(ShaderType st){
-        type_=st;
-        if(checkShader(ShaderType::Color|ShaderType::Light))
-            interp_sign_=interp_sign_|InterpolateSignal::Color;
-        if(checkShader(ShaderType::Normal|ShaderType::LIGHTSHADER))
-            interp_sign_=interp_sign_|InterpolateSignal::Normal;
-        if(checkShader(ShaderType::Texture|ShaderType::Light))
-            interp_sign_=interp_sign_|InterpolateSignal::UV;
-        if(checkShader(ShaderType::LIGHTSHADER))
-            interp_sign_=interp_sign_|InterpolateSignal::FragPos_World;
-    }
+    void setShaderType(ShaderType st);
 
     inline void setPrimitiveType( PrimitiveType t){ content_.primitive_type=t; }
 
