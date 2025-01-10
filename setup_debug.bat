@@ -25,7 +25,7 @@ REM  if use Visual Studio
 REM cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Debug ..
 
 REM choose default compiler
-cmake -DCMAKE_BUILD_TYPE=Debug  .. || (
+cmake -DCMAKE_BUILD_TYPE=Debug  .. -D GLFW_BUILD_DOCS=OFF || (
     echo CMake configuration failed. Exiting.
     exit /b 1
 )

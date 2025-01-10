@@ -24,14 +24,14 @@ REM  if use Visual Studio
 REM cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ..
 
 REM  choose default compiler
-cmake -DCMAKE_BUILD_TYPE=Release   .. || (
+cmake -DCMAKE_BUILD_TYPE=Release   .. -D GLFW_BUILD_DOCS=OFF || (
     echo CMake configuration failed. Exiting.
     exit /b 1
 )
 
 
 echo Building the project...
-cmake --build .  --config Release || (      # some compilers require release config 
+cmake --build .  --config Release  || (      # some compilers require release config 
     echo Build failed. Exiting.
     exit /b 1
 )
