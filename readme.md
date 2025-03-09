@@ -154,7 +154,7 @@ cmake --build .      // or: make ..
 > 统计不同测试算法在不同数量级面片数下，执行一遍完整管线的帧渲染平均开销(ms)
 > 
 
-测试环境：relase模式，1024*1024分辨率；shader种类为normal；Leaf size of BLAS =12；统一视角。
+测试环境：release模式，1024*1024分辨率；shader种类为normal；Leaf size of BLAS =12；统一视角。
 
 | 算法\面片数 | 5k | 10k | 60k | 100k | 150k |
 | --- | --- | --- | --- | --- | --- |
@@ -168,7 +168,7 @@ naive模式为不采用层次zbuffer且不采用扫描线转换，直接利用�
 > 统计渲染管线各阶段的每一帧的平均开销(ms)
 > 
 
-测试环境：relase模式，1024*1024分辨率；Leaf size of BLAS =12；以层次zbuffer为例；统一视角。
+测试环境：release模式，1024*1024分辨率；Leaf size of BLAS =12；以层次zbuffer为例；统一视角。
 
 | 算法\面片数 | 5k | 10k | 60k | 100k | 150k |
 | --- | --- | --- | --- | --- | --- |
